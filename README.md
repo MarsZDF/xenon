@@ -261,7 +261,9 @@ Parse XML in lenient mode - never raises exceptions.
 
 ## Try It Out
 
-**Interactive Notebook**: Try Xenon in your browser with our [Google Colab notebook](xenon_demo.ipynb) - no installation required!
+**Interactive Notebook**: Try Xenon in your browser with our Google Colab notebook - no installation required!
+
+[![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/MarsZDF/xenon/blob/main/xenon_demo.ipynb)
 
 ## Development
 
