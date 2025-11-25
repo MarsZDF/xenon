@@ -74,6 +74,65 @@ class TestXenonCore(unittest.TestCase):
         result = repair_xml(malformed)
         self.assertEqual(result, expected)
 
+    def test_cdata_wrapping(self):
+        """Test automatic CDATA wrapping for code content."""
+        malformed = '<code>function test() { return x && y; }</code>'
+        result = repair_xml(malformed)
+        # Should wrap in CDATA because contains code keywords
+        self.assertIn('<![CDATA[', result)
+        self.assertIn('function test()', result)
+        self.assertIn(']]>', result)
+
+    def test_case_insensitive_tags(self):
+        """Test case-insensitive tag matching uses opening tag's case."""
+        malformed = '<Root><Item>text</item></Root>'
+        expected = '<Root><Item>text</Item></Root>'
+        result = repair_xml(malformed)
+        self.assertEqual(result, expected)
+
+    def test_namespace_injection(self):
+        """Test automatic namespace declaration injection."""
+        malformed = '<soap:Envelope><soap:Body>test</soap:Body></soap:Envelope>'
+        result = repair_xml(malformed)
+        # Should inject xmlns:soap declaration
+        self.assertIn('xmlns:soap=', result)
+        self.assertIn('http://schemas.xmlsoap.org/soap/envelope/', result)
+
+    def test_duplicate_attributes(self):
+        """Test duplicate attribute removal (keeps first occurrence)."""
+        malformed = '<item id="1" name="foo" id="2">'
+        result = repair_xml(malformed)
+        # Should only have one id attribute
+        self.assertEqual(result.count('id='), 1)
+        self.assertIn('id="1"', result)
+        self.assertNotIn('id="2"', result)
+
+    # Security tests
+    def test_cdata_breakout_security(self):
+        """Test CDATA ]]> breakout prevention."""
+        malformed = '<code>]]>malicious</code>'
+        result = repair_xml(malformed)
+        # Should not have unescaped ]]> that breaks CDATA
+        if '<![CDATA[' in result:
+            # If CDATA was used, ensure ]]> is properly escaped
+            self.assertIn(']]]]><![CDATA[>', result)
+
+    def test_duplicate_attr_first_wins(self):
+        """Security test: Verify first duplicate attribute value is used."""
+        malformed = '<user role="admin" name="alice" role="user">'
+        result = repair_xml(malformed)
+        # First role value should be preserved
+        self.assertIn('role="admin"', result)
+        self.assertNotIn('role="user"', result)
+
+    def test_namespace_no_xxe(self):
+        """Security test: Verify namespace injection doesn't introduce entities."""
+        malformed = '<xsi:root>test</xsi:root>'
+        result = repair_xml(malformed)
+        # Should not contain entity declarations
+        self.assertNotIn('<!ENTITY', result)
+        self.assertNotIn('<!DOCTYPE', result)
+
 
 if __name__ == '__main__':
     unittest.main()

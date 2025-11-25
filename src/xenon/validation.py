@@ -40,10 +40,15 @@ def validate_xml_input(
     # Type validation
     if not isinstance(xml_input, str):
         type_name = type(xml_input).__name__
-        raise ValidationError(
-            f"Expected string input, got {type_name}. "
-            f"XML input must be a string, not {type_name}."
-        )
+        if xml_input is None:
+            raise ValidationError(
+                "XML input cannot be None. Please provide a valid XML string."
+            )
+        else:
+            raise ValidationError(
+                f"XML input must be a string, got {type_name} instead. "
+                f"Please pass XML as a string."
+            )
 
     # Empty/whitespace validation
     if not xml_input.strip():
@@ -55,11 +60,21 @@ def validate_xml_input(
 
     # Size validation (if enabled)
     if max_size is not None and len(xml_input) > max_size:
-        size_mb = len(xml_input) / (1024 * 1024)
-        max_mb = max_size / (1024 * 1024)
+        size_bytes = len(xml_input)
+        max_bytes = max_size
+
+        # Format sizes intelligently based on magnitude
+        def format_size(size_in_bytes):
+            if size_in_bytes >= 1024 * 1024:  # >= 1MB
+                return f"{size_in_bytes / (1024 * 1024):.2f}MB"
+            elif size_in_bytes >= 1024:  # >= 1KB
+                return f"{size_in_bytes / 1024:.2f}KB"
+            else:
+                return f"{size_in_bytes} bytes"
+
         raise ValidationError(
-            f"Input too large ({size_mb:.2f}MB). "
-            f"Maximum allowed size is {max_mb:.2f}MB. "
+            f"Input too large ({format_size(size_bytes)}). "
+            f"Maximum allowed size is {format_size(max_bytes)}. "
             f"Use max_size parameter to increase limit if needed."
         )
 

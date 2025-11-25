@@ -21,6 +21,14 @@ class XMLParseState:
 
 
 class XMLRepairEngine:
+    # Common namespace URIs for auto-injection
+    COMMON_NAMESPACES = {
+        'soap': 'http://schemas.xmlsoap.org/soap/envelope/',
+        'xsi': 'http://www.w3.org/2001/XMLSchema-instance',
+        'xsd': 'http://www.w3.org/2001/XMLSchema',
+        'xs': 'http://www.w3.org/2001/XMLSchema',
+    }
+
     def __init__(self):
         self.state = XMLParseState()
         
@@ -97,6 +105,7 @@ class XMLRepairEngine:
 
         # Now parse attributes
         result = [tag_name]
+        seen_attrs = set()  # Track attributes to remove duplicates
         i = attr_start_pos
 
         while i < len(content):
@@ -121,7 +130,36 @@ class XMLRepairEngine:
                 break
 
             attr_name = content[attr_start:i]
+            attr_name_lower = attr_name.lower()  # Case-insensitive duplicate check
             i += 1  # Skip the '='
+
+            # Skip if this is a duplicate attribute
+            if attr_name_lower in seen_attrs:
+                # Parse the value but don't add to result
+                if i < len(content) and content[i] in ['"', "'"]:
+                    quote_char = content[i]
+                    i += 1
+                    while i < len(content) and content[i] != quote_char:
+                        i += 1
+                    if i < len(content):
+                        i += 1
+                else:
+                    # Unquoted value
+                    while i < len(content):
+                        if content[i].isspace():
+                            j = i
+                            while j < len(content) and content[j].isspace():
+                                j += 1
+                            if j < len(content):
+                                k = j
+                                while k < len(content) and (content[k].isalnum() or content[k] in '_-:'):
+                                    k += 1
+                                if k < len(content) and content[k] == '=':
+                                    break
+                        i += 1
+                continue
+
+            seen_attrs.add(attr_name_lower)
 
             if i >= len(content):
                 result.append(f' {attr_name}="')
@@ -168,6 +206,97 @@ class XMLRepairEngine:
 
         return ''.join(result)
     
+    def detect_cdata_needed(self, text: str) -> bool:
+        """
+        Detect if text content should be wrapped in CDATA.
+
+        Heuristics:
+        - Contains >= 3 special XML chars (<, >, &)
+        - Contains code keywords (if, for, while, function, class, def, var, let, const)
+        - Has existing CDATA markers
+        """
+        if not text or len(text) < 3:
+            return False
+
+        # Check if already has CDATA
+        if '<![CDATA[' in text:
+            return False
+
+        # Count special characters
+        special_count = text.count('<') + text.count('>') + text.count('&')
+        if special_count >= 3:
+            return True
+
+        # Check for code keywords (case-insensitive)
+        code_keywords = ['if(', 'for(', 'while(', 'function', 'class ', 'def ',
+                        'var ', 'let ', 'const ', 'return ', '&&', '||', '!=', '==']
+        text_lower = text.lower()
+        for keyword in code_keywords:
+            if keyword in text_lower:
+                return True
+
+        return False
+
+    def wrap_in_cdata(self, text: str) -> str:
+        """
+        Wrap text in CDATA section with security fix for ]]> breakout.
+
+        SECURITY: Escape ]]> to prevent CDATA injection attacks.
+        """
+        # Escape ]]> to prevent CDATA breakout
+        safe_text = text.replace(']]>', ']]]]><![CDATA[>')
+        return f'<![CDATA[{safe_text}]]>'
+
+    def extract_namespaces(self, xml: str) -> Dict[str, str]:
+        """
+        Extract namespace prefixes used in XML.
+
+        Returns dict mapping prefix to namespace URI for known prefixes.
+        """
+        import re
+
+        namespaces = {}
+
+        # Find all namespace prefixes (prefix:tagname pattern)
+        prefix_pattern = r'</?([a-zA-Z][a-zA-Z0-9]*):([a-zA-Z][a-zA-Z0-9]*)'
+        matches = re.findall(prefix_pattern, xml)
+
+        for prefix, _ in matches:
+            if prefix in self.COMMON_NAMESPACES and prefix not in namespaces:
+                namespaces[prefix] = self.COMMON_NAMESPACES[prefix]
+
+        return namespaces
+
+    def inject_namespace_declarations(self, root_tag: str, namespaces: Dict[str, str]) -> str:
+        """
+        Inject namespace declarations into root tag.
+
+        Args:
+            root_tag: The root tag content (e.g., "root" or "root attr='val'")
+            namespaces: Dict mapping prefix to namespace URI
+
+        Returns:
+            Updated root tag with xmlns declarations
+        """
+        if not namespaces:
+            return root_tag
+
+        # Build xmlns declarations
+        xmlns_decls = []
+        for prefix, uri in namespaces.items():
+            xmlns_decls.append(f'xmlns:{prefix}="{uri}"')
+
+        # Insert xmlns after tag name
+        parts = root_tag.split(None, 1)
+        tag_name = parts[0]
+
+        if len(parts) > 1:
+            # Has attributes, insert xmlns before them
+            return f"{tag_name} {' '.join(xmlns_decls)} {parts[1]}"
+        else:
+            # No attributes, just add xmlns
+            return f"{tag_name} {' '.join(xmlns_decls)}"
+
     def escape_entities(self, text: str) -> str:
         # Only escape & and < in text content (not in tags)
         text = text.replace('&', '&amp;')
@@ -285,43 +414,71 @@ class XMLRepairEngine:
     def repair_xml(self, xml_string: str) -> str:
         # Step 1: Extract XML content from conversational fluff
         cleaned_xml = self.extract_xml_content(xml_string)
-        
+
+        # Step 1.5: Extract namespaces before tokenization
+        namespaces = self.extract_namespaces(cleaned_xml)
+
         # Step 2: Tokenize and parse with stack-based approach
         tokens = self.tokenize(cleaned_xml)
-        
+
         # Step 3: Rebuild XML with proper closing tags
         result = []
-        tag_stack = []
+        tag_stack = []  # Stack stores tuples of (original_case, lowercase) for case-insensitive matching
+        first_open_tag = True  # Track first tag for namespace injection
         i = 0
-        
+
         while i < len(tokens):
             token = tokens[i]
-            
+
             if token.type == 'processing_instruction':
                 result.append(token.content)
             elif token.type == 'open_tag':
-                result.append(f'<{token.content}>')
-                # Extract tag name for stack
+                # Inject namespaces into first open tag (root element)
+                if first_open_tag and namespaces:
+                    updated_content = self.inject_namespace_declarations(token.content, namespaces)
+                    result.append(f'<{updated_content}>')
+                    first_open_tag = False
+                else:
+                    result.append(f'<{token.content}>')
+                    first_open_tag = False
+
+                # Extract tag name for stack (store both original and lowercase)
                 if i + 1 < len(tokens) and tokens[i + 1].type == 'tag_name':
                     tag_name = tokens[i + 1].content
-                    tag_stack.append(tag_name)
+                    tag_stack.append((tag_name, tag_name.lower()))
                     i += 1  # Skip the tag_name token
             elif token.type == 'close_tag':
-                if tag_stack and tag_stack[-1] == token.content:
-                    tag_stack.pop()
-                result.append(f'</{token.content}>')
+                # Case-insensitive tag matching - use opening tag's case
+                closing_tag_lower = token.content.lower()
+                if tag_stack and tag_stack[-1][1] == closing_tag_lower:
+                    original_tag_name = tag_stack.pop()[0]
+                    result.append(f'</{original_tag_name}>')
+                else:
+                    result.append(f'</{token.content}>')
             elif token.type == 'self_closing_tag':
                 result.append(f'<{token.content}/>')
             elif token.type == 'incomplete_tag':
                 # Handle truncated tags
-                result.append(f'<{token.content}>')
+                # Inject namespaces into first tag if needed
+                if first_open_tag and namespaces:
+                    updated_content = self.inject_namespace_declarations(token.content, namespaces)
+                    result.append(f'<{updated_content}>')
+                    first_open_tag = False
+                else:
+                    result.append(f'<{token.content}>')
+                    first_open_tag = False
+
                 if i + 1 < len(tokens) and tokens[i + 1].type == 'tag_name':
                     tag_name = tokens[i + 1].content
-                    tag_stack.append(tag_name)
+                    tag_stack.append((tag_name, tag_name.lower()))
                     i += 1  # Skip the tag_name token
             elif token.type == 'text':
-                escaped_text = self.escape_entities(token.content)
-                result.append(escaped_text)
+                # Check if text needs CDATA wrapping (code, special chars)
+                if self.detect_cdata_needed(token.content):
+                    result.append(self.wrap_in_cdata(token.content))
+                else:
+                    escaped_text = self.escape_entities(token.content)
+                    result.append(escaped_text)
             elif token.type == 'whitespace':
                 result.append(token.content)
             
@@ -329,7 +486,7 @@ class XMLRepairEngine:
         
         # Step 4: Close any remaining open tags
         while tag_stack:
-            tag_name = tag_stack.pop()
+            tag_name = tag_stack.pop()[0]  # Use original case
             result.append(f'</{tag_name}>')
         
         return ''.join(result)

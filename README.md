@@ -66,6 +66,39 @@ repaired = repair_xml(malformed)
 # Result: <desc>Barnes &amp; Noble sells books &lt; $20</desc>
 ```
 
+### 5. Code Content (CDATA)
+Automatically wrap code and special content in CDATA sections:
+```python
+malformed = '<code>function test() { return x && y; }</code>'
+repaired = repair_xml(malformed)
+# Result: <code><![CDATA[function test() { return x && y; }]]></code>
+```
+
+### 6. Mismatched Tag Case
+Case-insensitive tag matching (uses opening tag's case):
+```python
+malformed = '<Root><Item>text</item></Root>'
+repaired = repair_xml(malformed)
+# Result: <Root><Item>text</Item></Root>
+```
+
+### 7. Missing Namespace Declarations
+Auto-inject common namespace declarations:
+```python
+malformed = '<soap:Envelope><soap:Body>test</soap:Body></soap:Envelope>'
+repaired = repair_xml(malformed)
+# Result: <soap:Envelope xmlns:soap="http://schemas.xmlsoap.org/soap/envelope/">
+#         <soap:Body>test</soap:Body></soap:Envelope>
+```
+
+### 8. Duplicate Attributes
+Remove duplicate attributes (keeps first occurrence):
+```python
+malformed = '<item id="1" name="foo" id="2">'
+repaired = repair_xml(malformed)
+# Result: <item id="1" name="foo"></item>
+```
+
 ## Error Handling
 
 Xenon provides three different modes for different use cases:

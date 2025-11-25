@@ -21,11 +21,12 @@ class TestErrorHandling(unittest.TestCase):
         # None input
         with self.assertRaises(ValidationError) as cm:
             repair_xml_safe(None)
-        self.assertIn('Expected string', str(cm.exception))
+        self.assertIn('cannot be None', str(cm.exception))
 
         # Wrong type
-        with self.assertRaises(ValidationError):
+        with self.assertRaises(ValidationError) as cm:
             repair_xml_safe(123)
+        self.assertIn('must be a string', str(cm.exception))
 
     def test_empty_string_handling(self):
         """Test empty string validation and allow_empty flag."""

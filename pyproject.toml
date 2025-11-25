@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "xenon"
-version = "0.1.0"
+version = "0.2.0"
 description = "A robust XML repair library for LLM-generated XML"
 readme = "README.md"
 requires-python = ">=3.7"
@@ -50,10 +50,10 @@ dev = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/xenon-xml/xenon"
-Documentation = "https://github.com/xenon-xml/xenon"
-Repository = "https://github.com/xenon-xml/xenon"
-"Bug Tracker" = "https://github.com/xenon-xml/xenon/issues"
+Homepage = "https://github.com/MarsZDF/xenon"
+Documentation = "https://github.com/MarsZDF/xenon"
+Repository = "https://github.com/MarsZDF/xenon"
+"Bug Tracker" = "https://github.com/MarsZDF/xenon/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/xenon"]
