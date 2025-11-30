@@ -1,8 +1,8 @@
 """Repair reporting and diagnostics for Xenon XML repair engine."""
 
 from dataclasses import dataclass, field
-from typing import List, Dict, Any
 from enum import Enum
+from typing import Any, Dict, List
 
 
 class RepairType(Enum):

@@ -1,7 +1,8 @@
 """Tests for invalid tag name sanitization (v0.5.0)."""
 
 import pytest
-from xenon import repair_xml_safe, XMLRepairEngine
+
+from xenon import XMLRepairEngine, repair_xml_safe
 
 
 class TestInvalidTagNames:

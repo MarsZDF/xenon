@@ -1,7 +1,8 @@
 """Utility functions for Xenon XML repair library."""
 
 import re
-from typing import List, Iterator, Tuple, Optional, Callable
+from typing import Callable, Iterator, List, Optional, Tuple
+
 from .reporting import RepairReport
 
 
@@ -111,8 +112,8 @@ def batch_repair(
         ...     else:
         ...         print(f"Success: {xml}")
     """
-    from .exceptions import XenonException
     from . import repair_xml_safe
+    from .exceptions import XenonException
 
     results = []
     total = len(xml_strings)
@@ -208,8 +209,8 @@ def stream_repair(
         ...     if not error:
         ...         print(repaired)
     """
-    from .exceptions import XenonException
     from . import repair_xml_safe
+    from .exceptions import XenonException
 
     for xml_string in xml_iterator:
         try:

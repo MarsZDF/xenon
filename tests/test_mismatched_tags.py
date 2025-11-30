@@ -1,6 +1,7 @@
 """Tests for mismatched tag detection using Levenshtein distance."""
 
 import pytest
+
 from xenon import repair_xml, repair_xml_safe
 
 

@@ -1,7 +1,8 @@
 """Tests for repair reporting and diagnostics."""
 
 import pytest
-from xenon import repair_xml_with_report, RepairReport, RepairAction, RepairType
+
+from xenon import RepairAction, RepairReport, RepairType, repair_xml_with_report
 
 
 class TestRepairReport:

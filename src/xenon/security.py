@@ -1,7 +1,8 @@
 """Security filtering component for Xenon XML repair engine."""
 
 import re
-from .config import XMLRepairConfig, SecurityFlags
+
+from .config import SecurityFlags, XMLRepairConfig
 
 
 class XMLSecurityFilter:

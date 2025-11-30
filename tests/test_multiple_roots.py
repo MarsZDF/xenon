@@ -1,7 +1,8 @@
 """Tests for multiple root element handling (v0.5.0)."""
 
 import pytest
-from xenon import repair_xml_safe, XMLRepairEngine
+
+from xenon import XMLRepairEngine, repair_xml_safe
 
 
 class TestMultipleRoots:

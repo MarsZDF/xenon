@@ -1,16 +1,17 @@
 """Tests for utility functions."""
 
 import pytest
+
+from xenon import XenonException
 from xenon.utils import (
-    detect_encoding,
-    decode_xml,
     batch_repair,
     batch_repair_with_reports,
+    decode_xml,
+    detect_encoding,
+    extract_text_content,
     stream_repair,
     validate_xml_structure,
-    extract_text_content
 )
-from xenon import XenonException
 
 
 class TestEncodingDetection:

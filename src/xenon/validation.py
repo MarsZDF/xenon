@@ -6,8 +6,8 @@ catching common errors early with helpful error messages.
 """
 
 from typing import Any
-from .exceptions import ValidationError
 
+from .exceptions import ValidationError
 
 # Default maximum input size: 100MB
 # This prevents DoS attacks with extremely large inputs

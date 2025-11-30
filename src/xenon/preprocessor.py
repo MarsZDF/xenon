@@ -1,8 +1,9 @@
 """XML preprocessing component for tag and namespace fixes."""
 
 import re
-from typing import Dict, Callable
-from .config import XMLRepairConfig, RepairFlags
+from typing import Dict
+
+from .config import RepairFlags, XMLRepairConfig
 
 
 class XMLPreprocessor:

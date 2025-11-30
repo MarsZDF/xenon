@@ -1,11 +1,11 @@
-import unittest
-import sys
 import os
+import sys
+import unittest
 
 # Add src to path for testing
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'src'))
 
-from xenon import repair_xml, parse_xml
+from xenon import parse_xml, repair_xml
 
 
 class TestXenonCore(unittest.TestCase):

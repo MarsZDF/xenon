@@ -2,7 +2,6 @@
 
 from dataclasses import dataclass
 from enum import Flag, auto
-from typing import Optional
 
 
 class SecurityFlags(Flag):
