@@ -23,9 +23,15 @@ wheels/
 # Testing
 .pytest_cache/
 .coverage
+.coverage.*
+coverage.xml
 htmlcov/
 .tox/
 .hypothesis/
+
+# Type checking and linting
+.mypy_cache/
+.ruff_cache/
 
 # Virtual environments
 venv/
@@ -49,5 +55,16 @@ test_simple.py
 error_handling_proposal.py
 cdata_examples.py
 cdata_implementation.py
+
+# Internal documentation (not for public)
 IMPROVEMENTS_SUMMARY.md
 ERROR_HANDLING_COMPLETE.md
+FEATURE_MISMATCHED_TAGS.md
+REMAINING_IMPROVEMENTS.md
+SECURITY.md
+PHASE2_SUMMARY.md
+POLISH_SUMMARY.md
+VERIFICATION.md
+
+# Research and analysis (not for production)
+research/

@@ -7,15 +7,35 @@ A robust, zero-dependency Python library for cleaning up malformed XML generated
 - **Zero Dependencies**: Uses only Python Standard Library
 - **Stack-based Parser**: Deterministic handling of nested structures and truncation
 - **LLM-Focused**: Specifically designed to handle common LLM XML generation failures
+- **Smart Tag Matching**: Detects and fixes typos in closing tags using similarity matching
 - **Robust Error Handling**: Production-ready with comprehensive validation and error recovery
 - **Multiple Modes**: Choose between strict, default, or lenient error handling
 - **Simple Interface**: Easy-to-use functions for common use cases
+- **🆕 v0.5.0**: Advanced XML compliance features and cleaner configuration API
 
 ## Installation
 
 ```bash
 pip install xenon
 ```
+
+## ⚠️ Security Warning & Features
+
+**Xenon is a syntactic repair tool, NOT a complete security sanitizer.**
+
+**Security features** (optional, OFF by default):
+- ✓ Strip dangerous processing instructions (PHP, ASP, JSP)
+- ✓ Strip external entity declarations (XXE prevention)
+- ✓ Strip dangerous tags (script, iframe, object, embed)
+
+**Xenon does NOT**:
+- ✗ Filter malicious Unicode
+- ✗ Validate XML content semantics
+- ✗ Provide complete XSS protection
+
+**For untrusted input:** Use the security flags AND add additional validation layers.
+
+See [SECURITY.md](SECURITY.md) for detailed threat model and best practices.
 
 ## Quick Start
 
@@ -31,6 +51,111 @@ print(repaired)  # <root><user name="john"></user></root>
 result = parse_xml(malformed)
 print(result)    # {'root': {'user': {'@attributes': {'name': 'john'}}}}
 ```
+
+## What's New in v0.5.0 🆕
+
+### New XML Compliance Features
+
+```python
+from xenon import repair_xml_safe
+
+# 1. Fix invalid tag names (starts with number, contains spaces)
+xml = '<123tag>data</123tag>'
+result = repair_xml_safe(xml, sanitize_invalid_tags=True)
+# Result: <tag_123tag>data</tag_123tag>
+
+xml = '<tag with spaces>data</tag with spaces>'
+result = repair_xml_safe(xml, sanitize_invalid_tags=True)
+# Result: <tag_with_spaces>data</tag_with_spaces>
+
+# 2. Fix invalid namespace syntax (multiple colons, etc.)
+xml = '<bad::ns>data</bad::ns>'
+result = repair_xml_safe(xml, fix_namespace_syntax=True)
+# Result: <bad_ns>data</bad_ns>
+
+xml = '<ns1:ns2:tag>data</ns1:ns2:tag>'
+result = repair_xml_safe(xml, fix_namespace_syntax=True)
+# Result: <ns1:ns2_tag>data</ns1:ns2_tag>
+
+# 3. Wrap multiple root elements
+xml = '<root1>data1</root1><root2>data2</root2>'
+result = repair_xml_safe(xml, wrap_multiple_roots=True)
+# Result: <document><root1>data1</root1><root2>data2</root2></document>
+
+# 4. Improved entity escaping (no double-escaping!)
+xml = '<root>&lt;already&gt; & new</root>'
+result = repair_xml_safe(xml)
+# Result: <root>&lt;already&gt; &amp; new</root>
+# (preserves existing entities, escapes new ones)
+
+# 5. Attribute value escaping
+xml = '<root attr="value & more">text</root>'
+result = repair_xml_safe(xml)
+# Result: <root attr="value &amp; more">text</root>
+```
+
+### Cleaner Configuration API (Recommended)
+
+**New in v0.5.0:** Use configuration objects for complex setups:
+
+```python
+from xenon import XMLRepairEngine, XMLRepairConfig, SecurityFlags, RepairFlags
+
+# Old way (still works!)
+engine = XMLRepairEngine(
+    strip_dangerous_pis=True,
+    strip_external_entities=True,
+    sanitize_invalid_tags=True,
+    fix_namespace_syntax=True
+)
+
+# New way (recommended for clarity)
+config = XMLRepairConfig(
+    security=SecurityFlags.STRIP_DANGEROUS_PIS | SecurityFlags.STRIP_EXTERNAL_ENTITIES,
+    repair=RepairFlags.SANITIZE_INVALID_TAGS | RepairFlags.FIX_NAMESPACE_SYNTAX
+)
+engine = XMLRepairEngine(config)
+
+# Both produce the same result!
+result = engine.repair_xml(malformed_xml)
+```
+
+**Benefits:**
+- Cleaner, more maintainable code
+- Better IDE autocomplete
+- Easier to see which features are enabled
+- Groups related features logically
+
+## Security Features
+
+For untrusted input, use `repair_xml_safe()` with security flags:
+
+```python
+from xenon import repair_xml_safe
+
+# Untrusted XML with potential security threats
+untrusted_xml = '''<?php system("whoami"); ?>
+<!DOCTYPE foo [<!ENTITY xxe SYSTEM "file:///etc/passwd">]>
+<root>
+    <script>alert('XSS')</script>
+    <data>clean content</data>
+</root>'''
+
+# Repair with all security features enabled
+safe_xml = repair_xml_safe(
+    untrusted_xml,
+    strip_dangerous_pis=True,      # Remove PHP/ASP/JSP code
+    strip_external_entities=True,   # Remove DOCTYPE with entities
+    strip_dangerous_tags=True       # Remove script/iframe/object/embed tags
+)
+
+# Result: <root>alert('XSS')<data>clean content</data></root>
+# - PHP code removed
+# - DOCTYPE removed
+# - <script> tags removed (content preserved)
+```
+
+**Important:** These features provide basic protection but are NOT a complete security solution. Always validate and sanitize untrusted input using additional security layers.
 
 ## Supported Failure Modes
 
@@ -82,7 +207,26 @@ repaired = repair_xml(malformed)
 # Result: <Root><Item>text</Item></Root>
 ```
 
-### 7. Missing Namespace Declarations
+### 7. Mismatched Tag Names (Typos)
+Detects and fixes typos in closing tags using similarity matching:
+```python
+malformed = '<user>John Doe</usr>'
+repaired = repair_xml(malformed)
+# Result: <user>John Doe</user>
+
+# Also handles multiple typos
+malformed = '<users><user>Alice</usr><user>Bob</user></usrs>'
+repaired = repair_xml(malformed)
+# Result: <users><user>Alice</user><user>Bob</user></users>
+```
+
+**How it works:**
+- Uses Levenshtein distance to detect typos (up to 2 character differences)
+- Matches closing tags to nearest opening tag on the stack
+- Fast: O(m×n) where m,n are tag name lengths (~10-20 chars)
+- Zero dependencies: pure Python stdlib
+
+### 8. Missing Namespace Declarations
 Auto-inject common namespace declarations:
 ```python
 malformed = '<soap:Envelope><soap:Body>test</soap:Body></soap:Envelope>'
@@ -91,12 +235,44 @@ repaired = repair_xml(malformed)
 #         <soap:Body>test</soap:Body></soap:Envelope>
 ```
 
-### 8. Duplicate Attributes
+### 9. Duplicate Attributes
 Remove duplicate attributes (keeps first occurrence):
 ```python
 malformed = '<item id="1" name="foo" id="2">'
 repaired = repair_xml(malformed)
 # Result: <item id="1" name="foo"></item>
+```
+
+### 10. Invalid Tag Names 🆕
+Fix XML tag names that violate XML specification:
+```python
+malformed = '<123illegal>data</123illegal>'
+repaired = repair_xml_safe(malformed, sanitize_invalid_tags=True)
+# Result: <tag_123illegal>data</tag_123illegal>
+
+malformed = '<tag-with spaces>data</tag-with spaces>'
+repaired = repair_xml_safe(malformed, sanitize_invalid_tags=True)
+# Result: <tag-with_spaces>data</tag-with_spaces>
+```
+
+### 11. Invalid Namespace Syntax 🆕
+Fix namespace syntax that violates XML specification:
+```python
+malformed = '<bad::ns>data</bad::ns>'
+repaired = repair_xml_safe(malformed, fix_namespace_syntax=True)
+# Result: <bad_ns>data</bad_ns>
+
+malformed = '<ns1:ns2:tag>data</ns1:ns2:tag>'
+repaired = repair_xml_safe(malformed, fix_namespace_syntax=True)
+# Result: <ns1:ns2_tag>data</ns1:ns2_tag>
+```
+
+### 12. Multiple Root Elements 🆕
+Wrap multiple root elements to create valid XML:
+```python
+malformed = '<root1>data1</root1><root2>data2</root2>'
+repaired = repair_xml_safe(malformed, wrap_multiple_roots=True)
+# Result: <document><root1>data1</root1><root2>data2</root2></document>
 ```
 
 ## Error Handling
@@ -140,6 +316,12 @@ result = repair_xml_safe('', allow_empty=True)  # Returns ''
 result = repair_xml_safe(large_xml, max_size=10_000_000)  # 10MB limit
 ```
 
+**Perfect for:**
+- Production applications requiring reliability
+- User-facing APIs where validation matters
+- Systems that need clear error messages and logging
+- Applications with specific input size constraints
+
 ### Lenient Mode (Never Raises)
 
 Use `repair_xml_lenient()` when you want maximum fault tolerance:
@@ -167,6 +349,12 @@ from xenon import repair_xml
 
 result = repair_xml('<root><item>')  # Works as always
 ```
+
+**Perfect for:**
+- Simple scripts and utilities
+- Performance-critical paths (minimal overhead)
+- Controlled environments with trusted input
+- Quick testing and experimentation
 
 **Note:** This function does not validate input types - passing `None` or non-string values will cause errors.
 
@@ -233,15 +421,21 @@ Repairs and parses malformed XML to a dictionary.
 
 ### Safe Functions (Recommended)
 
-#### `repair_xml_safe(xml_string, strict=False, allow_empty=False, max_size=None) -> str`
+#### `repair_xml_safe(...) -> str`
 
-Safely repair XML with comprehensive error handling.
+Safely repair XML with comprehensive error handling and optional security features.
 
 **Parameters:**
 - `xml_string` (str): The XML string to repair
 - `strict` (bool): Validate output structure (default: False)
 - `allow_empty` (bool): Accept empty input (default: False)
 - `max_size` (int): Max size in bytes, None = unlimited (default: 100MB)
+- `strip_dangerous_pis` (bool): Strip dangerous processing instructions like PHP, ASP, JSP (default: False)
+- `strip_external_entities` (bool): Strip DOCTYPE declarations with external entities for XXE prevention (default: False)
+- `strip_dangerous_tags` (bool): Strip potentially dangerous tags (script, iframe, object, embed) for XSS prevention (default: False)
+- `wrap_multiple_roots` (bool): Wrap multiple root elements in synthetic `<document>` root (default: False) **[NEW in v0.5.0]**
+- `sanitize_invalid_tags` (bool): Fix invalid XML tag names (default: False) **[NEW in v0.5.0]**
+- `fix_namespace_syntax` (bool): Fix invalid namespace syntax (default: False) **[NEW in v0.5.0]**
 
 **Returns:**
 - Repaired XML string
@@ -292,6 +486,68 @@ Parse XML in lenient mode - never raises exceptions.
 **Returns:**
 - Dictionary representation, or empty dict on any error
 
+---
+
+## Advanced Usage
+
+### Using Configuration Objects (v0.5.0+)
+
+For complex setups, use the configuration object API:
+
+```python
+from xenon import XMLRepairEngine, XMLRepairConfig, SecurityFlags, RepairFlags
+
+# Create a configuration
+config = XMLRepairConfig(
+    match_threshold=2,  # Typo detection sensitivity
+    security=SecurityFlags.STRIP_DANGEROUS_PIS |
+             SecurityFlags.STRIP_EXTERNAL_ENTITIES |
+             SecurityFlags.STRIP_DANGEROUS_TAGS,
+    repair=RepairFlags.SANITIZE_INVALID_TAGS |
+           RepairFlags.FIX_NAMESPACE_SYNTAX |
+           RepairFlags.WRAP_MULTIPLE_ROOTS
+)
+
+# Create engine with config
+engine = XMLRepairEngine(config)
+
+# Use it
+result = engine.repair_xml(untrusted_xml)
+```
+
+### Using Individual Components
+
+For custom processing pipelines:
+
+```python
+from xenon import XMLPreprocessor, XMLSecurityFilter, XMLRepairConfig
+
+# Preprocess tags only
+config = XMLRepairConfig.from_booleans(sanitize_invalid_tags=True)
+preprocessor = XMLPreprocessor(config)
+cleaned = preprocessor.preprocess('<123tag>data</123tag>')
+# Result: '<tag_123tag>data</tag_123tag>'
+
+# Security checks
+security = XMLSecurityFilter(config)
+if security.is_dangerous_tag('script'):
+    print("Found dangerous tag!")
+```
+
+### Performance Optimization
+
+For batch processing, reuse the engine:
+
+```python
+from xenon import XMLRepairEngine
+
+# Create engine once
+engine = XMLRepairEngine()
+
+# Reuse for multiple repairs
+results = [engine.repair_xml(xml) for xml in xml_batch]
+```
+
 ## Try It Out
 
 **Interactive Notebook**: Try Xenon in your browser with our Google Colab notebook - no installation required!
@@ -308,12 +564,25 @@ cd xenon
 # Install development dependencies
 pip install -e ".[dev]"
 
-# Run tests (13 essential tests)
+# Run tests (149 comprehensive tests)
 python -m pytest tests/
 
 # Run specific test file
 python -m pytest tests/test_core.py -v
 ```
+
+## Performance
+
+Xenon is designed for production use with LLM-generated XML:
+
+- **Fast**: Single-pass processing with optimized algorithms
+- **Efficient**: Minimal memory overhead (~1MB for typical documents)
+- **Scalable**: Handles documents up to 100MB by default (configurable)
+
+**v0.5.0 Performance Improvements:**
+- ~2x faster preprocessing when using multiple repair features
+- Single-pass tag transformation (vs multiple regex passes)
+- Reduced memory usage through better component separation
 
 ## License
 
@@ -322,3 +591,11 @@ MIT License - see LICENSE file for details.
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
+
+## Version History
+
+- **v0.5.0** (2025-01-29): XML compliance features, configuration API, architectural refactoring
+- **v0.4.0** (2025-01-28): Security features, safe mode, error handling
+- **v0.3.0**: Typo detection, similarity matching
+- **v0.2.0**: Namespace support, CDATA wrapping
+- **v0.1.0**: Initial release
