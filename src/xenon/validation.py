@@ -15,9 +15,7 @@ DEFAULT_MAX_SIZE = 100 * 1024 * 1024
 
 
 def validate_xml_input(
-    xml_input: Any,
-    allow_empty: bool = False,
-    max_size: int = DEFAULT_MAX_SIZE
+    xml_input: Any, allow_empty: bool = False, max_size: int = DEFAULT_MAX_SIZE
 ) -> None:
     """
     Validate XML input before processing.
@@ -41,13 +39,10 @@ def validate_xml_input(
     if not isinstance(xml_input, str):
         type_name = type(xml_input).__name__
         if xml_input is None:
-            raise ValidationError(
-                "XML input cannot be None. Please provide a valid XML string."
-            )
+            raise ValidationError("XML input cannot be None. Please provide a valid XML string.")
         else:
             raise ValidationError(
-                f"XML input must be a string, got {type_name} instead. "
-                f"Please pass XML as a string."
+                f"XML input must be a string, got {type_name} instead. Please pass XML as a string."
             )
 
     # Empty/whitespace validation
@@ -79,10 +74,7 @@ def validate_xml_input(
         )
 
 
-def validate_repaired_output(
-    repaired: str,
-    original: str
-) -> None:
+def validate_repaired_output(repaired: str, original: str) -> None:
     """
     Validate that repaired XML meets basic quality standards.
 
@@ -104,12 +96,11 @@ def validate_repaired_output(
     # Check output is not empty
     if not repaired.strip():
         raise ValidationError(
-            "Repair produced empty output. "
-            "Original input may not contain valid XML structure."
+            "Repair produced empty output. Original input may not contain valid XML structure."
         )
 
     # Check for basic XML structure (at least one tag)
-    if '<' not in repaired or '>' not in repaired:
+    if "<" not in repaired or ">" not in repaired:
         preview = repaired[:100] if len(repaired) > 100 else repaired
         raise ValidationError(
             f"Repair produced invalid output without XML tags: {repr(preview)}... "

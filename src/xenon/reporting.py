@@ -7,6 +7,7 @@ from typing import Any, Dict, List
 
 class RepairType(Enum):
     """Types of repairs performed."""
+
     TRUNCATION = "truncation"
     CONVERSATIONAL_FLUFF = "conversational_fluff"
     MALFORMED_ATTRIBUTE = "malformed_attribute"
@@ -31,8 +32,8 @@ class RepairAction:
     repair_type: RepairType
     description: str
     location: str = ""  # Optional location info (line number, tag name, etc.)
-    before: str = ""    # Optional: what it looked like before
-    after: str = ""     # Optional: what it looks like after
+    before: str = ""  # Optional: what it looked like before
+    after: str = ""  # Optional: what it looks like after
 
     def __str__(self) -> str:
         """Human-readable representation."""
@@ -72,16 +73,18 @@ class RepairReport:
         description: str,
         location: str = "",
         before: str = "",
-        after: str = ""
+        after: str = "",
     ) -> None:
         """Add a repair action to the report."""
-        self.actions.append(RepairAction(
-            repair_type=repair_type,
-            description=description,
-            location=location,
-            before=before,
-            after=after
-        ))
+        self.actions.append(
+            RepairAction(
+                repair_type=repair_type,
+                description=description,
+                location=location,
+                before=before,
+                after=after,
+            )
+        )
 
     def summary(self) -> str:
         """Get a human-readable summary of all repairs."""
@@ -134,7 +137,7 @@ class RepairReport:
                 }
                 for action in self.actions
             ],
-            "statistics": self.statistics()
+            "statistics": self.statistics(),
         }
 
     def has_security_issues(self) -> bool:

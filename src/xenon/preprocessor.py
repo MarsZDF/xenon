@@ -42,10 +42,9 @@ class XMLPreprocessor:
 
     def _needs_preprocessing(self) -> bool:
         """Check if any preprocessing is needed."""
-        return (
-            self.config.has_repair_feature(RepairFlags.SANITIZE_INVALID_TAGS) or
-            self.config.has_repair_feature(RepairFlags.FIX_NAMESPACE_SYNTAX)
-        )
+        return self.config.has_repair_feature(
+            RepairFlags.SANITIZE_INVALID_TAGS
+        ) or self.config.has_repair_feature(RepairFlags.FIX_NAMESPACE_SYNTAX)
 
     def _single_pass_transform(self, xml_string: str) -> str:
         """
@@ -53,14 +52,14 @@ class XMLPreprocessor:
 
         This is much more efficient than multiple regex passes.
         """
-        tag_pattern = r'<(/?)([^>]+?)(/?)>'
+        tag_pattern = r"<(/?)([^>]+?)(/?)>"
 
         def transform_tag(match):
             slash, inner_content, self_closing = match.groups()
             inner_content = inner_content.strip()
 
             # Skip special tags (comments, CDATA, DOCTYPE, PIs)
-            if inner_content.startswith('!') or inner_content.startswith('?'):
+            if inner_content.startswith("!") or inner_content.startswith("?"):
                 return match.group(0)
 
             # Extract tag name and attributes
@@ -80,9 +79,9 @@ class XMLPreprocessor:
             # Rebuild tag if name was changed
             if fixed_name != tag_name:
                 if rest:
-                    return f'<{slash}{fixed_name} {rest.lstrip()}{self_closing}>'
+                    return f"<{slash}{fixed_name} {rest.lstrip()}{self_closing}>"
                 else:
-                    return f'<{slash}{fixed_name}{self_closing}>'
+                    return f"<{slash}{fixed_name}{self_closing}>"
 
             return match.group(0)
 
@@ -95,14 +94,14 @@ class XMLPreprocessor:
         Returns:
             (tag_name, rest_of_content)
         """
-        equals_pos = inner_content.find('=')
+        equals_pos = inner_content.find("=")
 
         if equals_pos == -1:
             # No attributes, entire content is tag name
-            return inner_content, ''
+            return inner_content, ""
         else:
             # Has attributes, find where tag name ends
-            space_pos = inner_content.find(' ')
+            space_pos = inner_content.find(" ")
             if space_pos != -1 and space_pos < equals_pos:
                 tag_name = inner_content[:space_pos]
                 rest = inner_content[space_pos:]
@@ -121,7 +120,7 @@ class XMLPreprocessor:
             <-invalid> → <tag_-invalid>
         """
         if not tag_name:
-            return 'tag'
+            return "tag"
 
         # Check cache
         if tag_name in self.tag_name_map:
@@ -130,18 +129,18 @@ class XMLPreprocessor:
         original = tag_name
 
         # Replace spaces with underscores
-        tag_name = tag_name.replace(' ', '_')
+        tag_name = tag_name.replace(" ", "_")
 
         # Remove invalid characters (keep only alphanumeric, _, -, ., :)
-        tag_name = re.sub(r'[^a-zA-Z0-9_\-.:]+', '', tag_name)
+        tag_name = re.sub(r"[^a-zA-Z0-9_\-.:]+", "", tag_name)
 
         # Ensure starts with valid character (letter, _, or :)
-        if tag_name and not (tag_name[0].isalpha() or tag_name[0] in '_:'):
-            tag_name = 'tag_' + tag_name
+        if tag_name and not (tag_name[0].isalpha() or tag_name[0] in "_:"):
+            tag_name = "tag_" + tag_name
 
         # Fallback if empty after cleaning
         if not tag_name:
-            tag_name = 'tag'
+            tag_name = "tag"
 
         # Cache the result
         self.tag_name_map[original] = tag_name
@@ -154,11 +153,11 @@ class XMLPreprocessor:
             return False
 
         # Must start with letter, underscore, or colon
-        if not (tag_name[0].isalpha() or tag_name[0] in '_:'):
+        if not (tag_name[0].isalpha() or tag_name[0] in "_:"):
             return False
 
         # Check remaining characters
-        return bool(re.match(r'^[a-zA-Z_:][\w\-.:]*$', tag_name))
+        return bool(re.match(r"^[a-zA-Z_:][\w\-.:]*$", tag_name))
 
     def _fix_namespace_syntax(self, tag_name: str) -> str:
         """
@@ -171,39 +170,39 @@ class XMLPreprocessor:
         - tag: → tag
         - ns1:ns2:tag → ns1:ns2_tag
         """
-        if ':' not in tag_name:
+        if ":" not in tag_name:
             return tag_name
 
-        colon_count = tag_name.count(':')
+        colon_count = tag_name.count(":")
 
         # Single colon - check for edge cases
         if colon_count == 1:
-            if tag_name.startswith(':'):
-                return 'c_' + tag_name[1:] if len(tag_name) > 1 else 'tag'
-            elif tag_name.endswith(':'):
+            if tag_name.startswith(":"):
+                return "c_" + tag_name[1:] if len(tag_name) > 1 else "tag"
+            elif tag_name.endswith(":"):
                 return tag_name[:-1]
             else:
                 # Valid namespace syntax
-                parts = tag_name.split(':')
+                parts = tag_name.split(":")
                 if len(parts) == 2 and parts[0] and parts[1]:
                     return tag_name
                 elif not parts[0]:
-                    return 'c_' + parts[1]
+                    return "c_" + parts[1]
                 elif not parts[1]:
                     return parts[0]
 
         # Multiple colons - filter empty parts and rebuild
-        parts = [p for p in tag_name.split(':') if p]
+        parts = [p for p in tag_name.split(":") if p]
 
         if len(parts) == 0:
-            return 'tag'
+            return "tag"
         elif len(parts) == 1:
             return parts[0]
         elif len(parts) == 2:
             # Had issues (consecutive colons, edge cases)
-            if '::' in tag_name or tag_name.startswith(':') or tag_name.endswith(':'):
-                return '_'.join(parts)
+            if "::" in tag_name or tag_name.startswith(":") or tag_name.endswith(":"):
+                return "_".join(parts)
             return tag_name
         else:
             # More than 2 parts: keep first colon, join rest with underscore
-            return parts[0] + ':' + '_'.join(parts[1:])
+            return parts[0] + ":" + "_".join(parts[1:])

@@ -10,26 +10,20 @@ class TestRepairReport:
 
     def test_empty_report(self):
         """Test report with no repairs."""
-        report = RepairReport(
-            original_xml="<root></root>",
-            repaired_xml="<root></root>"
-        )
+        report = RepairReport(original_xml="<root></root>", repaired_xml="<root></root>")
         assert len(report) == 0
         assert not report  # Should be falsy
         assert "No repairs needed" in report.summary()
 
     def test_add_action(self):
         """Test adding repair actions."""
-        report = RepairReport(
-            original_xml="<root>",
-            repaired_xml="<root></root>"
-        )
+        report = RepairReport(original_xml="<root>", repaired_xml="<root></root>")
         report.add_action(
             RepairType.TRUNCATION,
             "Added closing tag",
             location="line 1",
             before="<root>",
-            after="<root></root>"
+            after="<root></root>",
         )
 
         assert len(report) == 1
@@ -40,10 +34,7 @@ class TestRepairReport:
 
     def test_summary(self):
         """Test summary generation."""
-        report = RepairReport(
-            original_xml="<root>",
-            repaired_xml="<root></root>"
-        )
+        report = RepairReport(original_xml="<root>", repaired_xml="<root></root>")
         report.add_action(RepairType.TRUNCATION, "Added closing tag")
         report.add_action(RepairType.UNESCAPED_ENTITY, "Escaped ampersand")
 
@@ -54,10 +45,7 @@ class TestRepairReport:
 
     def test_by_type(self):
         """Test grouping actions by type."""
-        report = RepairReport(
-            original_xml="<root>",
-            repaired_xml="<root></root>"
-        )
+        report = RepairReport(original_xml="<root>", repaired_xml="<root></root>")
         report.add_action(RepairType.TRUNCATION, "Fix 1")
         report.add_action(RepairType.TRUNCATION, "Fix 2")
         report.add_action(RepairType.UNESCAPED_ENTITY, "Fix 3")
@@ -68,10 +56,7 @@ class TestRepairReport:
 
     def test_statistics(self):
         """Test statistics generation."""
-        report = RepairReport(
-            original_xml="<root>",
-            repaired_xml="<root></root>"
-        )
+        report = RepairReport(original_xml="<root>", repaired_xml="<root></root>")
         report.add_action(RepairType.TRUNCATION, "Fix 1")
         report.add_action(RepairType.TRUNCATION, "Fix 2")
 
@@ -83,16 +68,13 @@ class TestRepairReport:
 
     def test_to_dict(self):
         """Test conversion to dictionary."""
-        report = RepairReport(
-            original_xml="<root>",
-            repaired_xml="<root></root>"
-        )
+        report = RepairReport(original_xml="<root>", repaired_xml="<root></root>")
         report.add_action(
             RepairType.TRUNCATION,
             "Added closing tag",
             location="end",
             before="<root>",
-            after="<root></root>"
+            after="<root></root>",
         )
 
         data = report.to_dict()
@@ -120,10 +102,7 @@ class TestRepairAction:
 
     def test_basic_action(self):
         """Test basic action creation."""
-        action = RepairAction(
-            repair_type=RepairType.TRUNCATION,
-            description="Added closing tag"
-        )
+        action = RepairAction(repair_type=RepairType.TRUNCATION, description="Added closing tag")
         assert action.repair_type == RepairType.TRUNCATION
         assert action.description == "Added closing tag"
         assert action.location == ""
@@ -136,19 +115,16 @@ class TestRepairAction:
             repair_type=RepairType.MALFORMED_ATTRIBUTE,
             description="Added quotes",
             location="line 5, tag 'item'",
-            before='name=john',
-            after='name="john"'
+            before="name=john",
+            after='name="john"',
         )
         assert action.location == "line 5, tag 'item'"
-        assert action.before == 'name=john'
+        assert action.before == "name=john"
         assert action.after == 'name="john"'
 
     def test_action_string_representation(self):
         """Test __str__ method."""
-        action = RepairAction(
-            repair_type=RepairType.TRUNCATION,
-            description="Added closing tag"
-        )
+        action = RepairAction(repair_type=RepairType.TRUNCATION, description="Added closing tag")
         s = str(action)
         assert "[truncation]" in s
         assert "Added closing tag" in s
@@ -157,8 +133,8 @@ class TestRepairAction:
             repair_type=RepairType.MALFORMED_ATTRIBUTE,
             description="Added quotes",
             location="line 5",
-            before='name=john',
-            after='name="john"'
+            before="name=john",
+            after='name="john"',
         )
         s = str(action)
         assert "at line 5" in s
@@ -170,7 +146,7 @@ class TestRepairXMLWithReport:
 
     def test_no_repairs_needed(self):
         """Test well-formed XML."""
-        xml = '<root><item>Hello</item></root>'
+        xml = "<root><item>Hello</item></root>"
         result, report = repair_xml_with_report(xml)
 
         assert result == xml
@@ -179,11 +155,11 @@ class TestRepairXMLWithReport:
 
     def test_truncation_repair(self):
         """Test truncation detection."""
-        xml = '<root><item>Hello'
+        xml = "<root><item>Hello"
         result, report = repair_xml_with_report(xml)
 
-        assert '</item>' in result
-        assert '</root>' in result
+        assert "</item>" in result
+        assert "</root>" in result
         assert len(report) > 0
 
         # Check that truncation was detected
@@ -192,20 +168,20 @@ class TestRepairXMLWithReport:
 
     def test_entity_escaping_repair(self):
         """Test entity escaping detection."""
-        xml = '<root>Tom & Jerry</root>'
+        xml = "<root>Tom & Jerry</root>"
         result, report = repair_xml_with_report(xml)
 
-        assert '&amp;' in result
+        assert "&amp;" in result
 
         # May detect entity escaping
         types = [a.repair_type for a in report.actions]
         # Entity escaping is detected if &amp; appears in output but not input
-        if '&amp;' in result and '&amp;' not in xml:
+        if "&amp;" in result and "&amp;" not in xml:
             assert RepairType.UNESCAPED_ENTITY in types
 
     def test_attribute_repair(self):
         """Test attribute repair detection."""
-        xml = '<root><item name=john>Hello</item></root>'
+        xml = "<root><item name=john>Hello</item></root>"
         result, report = repair_xml_with_report(xml)
 
         assert 'name="john"' in result
@@ -217,19 +193,19 @@ class TestRepairXMLWithReport:
 
     def test_multiple_repairs(self):
         """Test multiple repairs in one document."""
-        xml = '<root><item name=john>Tom & Jerry'
+        xml = "<root><item name=john>Tom & Jerry"
         result, report = repair_xml_with_report(xml)
 
         # Should have multiple repairs
         assert len(report) >= 2
 
         # Should have repaired multiple issues
-        assert '</item>' in result
-        assert '</root>' in result
+        assert "</item>" in result
+        assert "</root>" in result
 
     def test_report_structure(self):
         """Test report has correct structure."""
-        xml = '<root><item>Hello'
+        xml = "<root><item>Hello"
         result, report = repair_xml_with_report(xml)
 
         assert isinstance(report, RepairReport)
@@ -247,17 +223,17 @@ class TestRepairXMLWithReport:
         """Test CDATA wrapping detection."""
         # This is speculative - CDATA wrapping may or may not be implemented
         # The test is here to verify if it works when implemented
-        xml = '<code>if (x < 5) { return true; }</code>'
+        xml = "<code>if (x < 5) { return true; }</code>"
         result, report = repair_xml_with_report(xml)
 
         # If CDATA was added, it should be detected
-        if '<![CDATA[' in result and '<![CDATA[' not in xml:
+        if "<![CDATA[" in result and "<![CDATA[" not in xml:
             types = [a.repair_type for a in report.actions]
             assert RepairType.CDATA_WRAPPED in types
 
     def test_report_is_truthy_when_repairs_made(self):
         """Test that report evaluates to True when repairs were made."""
-        xml = '<root><item>Hello'
+        xml = "<root><item>Hello"
         result, report = repair_xml_with_report(xml)
 
         # Report should be truthy if repairs were made
@@ -268,7 +244,7 @@ class TestRepairXMLWithReport:
 
     def test_report_statistics_accuracy(self):
         """Test that statistics are accurate."""
-        xml = '<root><item>Hello'
+        xml = "<root><item>Hello"
         result, report = repair_xml_with_report(xml)
 
         stats = report.statistics()

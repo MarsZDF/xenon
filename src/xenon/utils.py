@@ -28,21 +28,21 @@ def detect_encoding(xml_bytes: bytes) -> str:
         'utf-16-le'
     """
     # Check BOM (Byte Order Mark)
-    if xml_bytes.startswith(b'\xff\xfe\x00\x00'):
-        return 'utf-32-le'
-    elif xml_bytes.startswith(b'\x00\x00\xfe\xff'):
-        return 'utf-32-be'
-    elif xml_bytes.startswith(b'\xff\xfe'):
-        return 'utf-16-le'
-    elif xml_bytes.startswith(b'\xfe\xff'):
-        return 'utf-16-be'
-    elif xml_bytes.startswith(b'\xef\xbb\xbf'):
-        return 'utf-8-sig'
+    if xml_bytes.startswith(b"\xff\xfe\x00\x00"):
+        return "utf-32-le"
+    elif xml_bytes.startswith(b"\x00\x00\xfe\xff"):
+        return "utf-32-be"
+    elif xml_bytes.startswith(b"\xff\xfe"):
+        return "utf-16-le"
+    elif xml_bytes.startswith(b"\xfe\xff"):
+        return "utf-16-be"
+    elif xml_bytes.startswith(b"\xef\xbb\xbf"):
+        return "utf-8-sig"
 
     # Try to decode as UTF-8 and look for encoding declaration
     try:
         # Try UTF-8 first (most common)
-        text = xml_bytes.decode('utf-8', errors='ignore')
+        text = xml_bytes.decode("utf-8", errors="ignore")
 
         # Look for encoding in XML declaration
         # <?xml version="1.0" encoding="UTF-8"?>
@@ -50,11 +50,11 @@ def detect_encoding(xml_bytes: bytes) -> str:
         if match:
             return match.group(1)
 
-        return 'utf-8'  # Default to UTF-8
+        return "utf-8"  # Default to UTF-8
 
     except Exception:
         # Fallback to latin-1 (always succeeds)
-        return 'iso-8859-1'
+        return "iso-8859-1"
 
 
 def decode_xml(xml_bytes: bytes, encoding: Optional[str] = None) -> str:
@@ -80,15 +80,11 @@ def decode_xml(xml_bytes: bytes, encoding: Optional[str] = None) -> str:
         return xml_bytes.decode(encoding)
     except (UnicodeDecodeError, LookupError):
         # Fallback to UTF-8 with error replacement
-        return xml_bytes.decode('utf-8', errors='replace')
+        return xml_bytes.decode("utf-8", errors="replace")
 
 
 def batch_repair(
-    xml_strings: List[str],
-    *,
-    show_progress: bool = False,
-    on_error: str = 'skip',
-    **repair_kwargs
+    xml_strings: List[str], *, show_progress: bool = False, on_error: str = "skip", **repair_kwargs
 ) -> List[Tuple[str, Optional[Exception]]]:
     """
     Repair multiple XML strings in batch with error handling.
@@ -120,16 +116,16 @@ def batch_repair(
 
     for i, xml_string in enumerate(xml_strings):
         if show_progress and i % 100 == 0:
-            print(f"Processing {i}/{total}...", end='\r')
+            print(f"Processing {i}/{total}...", end="\r")
 
         try:
             repaired = repair_xml_safe(xml_string, **repair_kwargs)
             results.append((repaired, None))
         except XenonException as e:
-            if on_error == 'raise':
+            if on_error == "raise":
                 raise
-            elif on_error == 'return_empty':
-                results.append(('', e))
+            elif on_error == "return_empty":
+                results.append(("", e))
             else:  # skip
                 results.append((xml_string, e))
 
@@ -143,7 +139,7 @@ def batch_repair_with_reports(
     xml_strings: List[str],
     *,
     show_progress: bool = False,
-    filter_func: Optional[Callable[[RepairReport], bool]] = None
+    filter_func: Optional[Callable[[RepairReport], bool]] = None,
 ) -> List[Tuple[str, RepairReport]]:
     """
     Repair multiple XML strings and get detailed reports.
@@ -173,7 +169,7 @@ def batch_repair_with_reports(
 
     for i, xml_string in enumerate(xml_strings):
         if show_progress and i % 100 == 0:
-            print(f"Processing {i}/{total}...", end='\r')
+            print(f"Processing {i}/{total}...", end="\r")
 
         repaired, report = repair_xml_with_report(xml_string)
 
@@ -187,8 +183,7 @@ def batch_repair_with_reports(
 
 
 def stream_repair(
-    xml_iterator: Iterator[str],
-    **repair_kwargs
+    xml_iterator: Iterator[str], **repair_kwargs
 ) -> Iterator[Tuple[str, Optional[Exception]]]:
     """
     Repair XML strings from an iterator (for streaming/large datasets).
@@ -248,16 +243,16 @@ def validate_xml_structure(xml_string: str) -> Tuple[bool, List[str]]:
         issues.append("Empty XML string")
         return False, issues
 
-    if '<' not in xml_string or '>' not in xml_string:
+    if "<" not in xml_string or ">" not in xml_string:
         issues.append("No XML tags found")
         return False, issues
 
     # Simple tag balance check
-    open_tags = re.findall(r'<([a-zA-Z_:][\w\-.:]*)', xml_string)
-    close_tags = re.findall(r'</([a-zA-Z_:][\w\-.:]*)', xml_string)
+    open_tags = re.findall(r"<([a-zA-Z_:][\w\-.:]*)", xml_string)
+    close_tags = re.findall(r"</([a-zA-Z_:][\w\-.:]*)", xml_string)
 
     # Filter out self-closing tags and special tags
-    open_tags = [t for t in open_tags if not xml_string.count(f'<{t}/>')]
+    open_tags = [t for t in open_tags if not xml_string.count(f"<{t}/>")]
 
     if len(open_tags) > len(close_tags):
         issues.append(f"More opening tags ({len(open_tags)}) than closing tags ({len(close_tags)})")
@@ -267,7 +262,7 @@ def validate_xml_structure(xml_string: str) -> Tuple[bool, List[str]]:
 
     # Check for unescaped entities
     # Simple check for & not followed by entity pattern
-    unescaped = re.findall(r'&(?![a-zA-Z]+;|#\d+;|#x[0-9a-fA-F]+;)', xml_string)
+    unescaped = re.findall(r"&(?![a-zA-Z]+;|#\d+;|#x[0-9a-fA-F]+;)", xml_string)
     if unescaped:
         issues.append(f"Found {len(unescaped)} unescaped ampersands")
 
@@ -298,18 +293,18 @@ def extract_text_content(xml_string: str) -> str:
         'HelloWorld'
     """
     # Remove CDATA sections but keep their content
-    text = re.sub(r'<!\[CDATA\[(.*?)\]\]>', r'\1', xml_string, flags=re.DOTALL)
+    text = re.sub(r"<!\[CDATA\[(.*?)\]\]>", r"\1", xml_string, flags=re.DOTALL)
 
     # Remove comments
-    text = re.sub(r'<!--.*?-->', '', text, flags=re.DOTALL)
+    text = re.sub(r"<!--.*?-->", "", text, flags=re.DOTALL)
 
     # Remove processing instructions
-    text = re.sub(r'<\?.*?\?>', '', text, flags=re.DOTALL)
+    text = re.sub(r"<\?.*?\?>", "", text, flags=re.DOTALL)
 
     # Remove DOCTYPE
-    text = re.sub(r'<!DOCTYPE.*?>', '', text, flags=re.DOTALL | re.IGNORECASE)
+    text = re.sub(r"<!DOCTYPE.*?>", "", text, flags=re.DOTALL | re.IGNORECASE)
 
     # Remove all tags
-    text = re.sub(r'<[^>]+>', '', text)
+    text = re.sub(r"<[^>]+>", "", text)
 
     return text

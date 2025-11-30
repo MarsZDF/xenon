@@ -79,7 +79,7 @@ def repair_xml_with_report(xml_string: str) -> Tuple[str, RepairReport]:
     # For now, create a basic report (we'll enhance XMLRepairEngine to populate this)
     report = RepairReport(
         original_xml=xml_string,
-        repaired_xml=""  # Will be set after repair
+        repaired_xml="",  # Will be set after repair
     )
 
     # Perform repair
@@ -90,35 +90,28 @@ def repair_xml_with_report(xml_string: str) -> Tuple[str, RepairReport]:
     if len(repaired) > len(xml_string):
         # Likely added closing tags
         report.add_action(
-            RepairType.TRUNCATION,
-            "Added missing closing tags",
-            location="end of document"
+            RepairType.TRUNCATION, "Added missing closing tags", location="end of document"
         )
 
     if xml_string != xml_string.strip() and repaired == xml_string.strip():
         # Whitespace trimmed
         pass
 
-    if '&amp;' in repaired and '&amp;' not in xml_string:
+    if "&amp;" in repaired and "&amp;" not in xml_string:
         # Escaped entities
         report.add_action(
-            RepairType.UNESCAPED_ENTITY,
-            "Escaped unescaped ampersands in text content"
+            RepairType.UNESCAPED_ENTITY, "Escaped unescaped ampersands in text content"
         )
 
-    if 'name="' in repaired and 'name=' in xml_string and 'name="' not in xml_string:
+    if 'name="' in repaired and "name=" in xml_string and 'name="' not in xml_string:
         # Fixed attributes
         report.add_action(
-            RepairType.MALFORMED_ATTRIBUTE,
-            "Added quotes to unquoted attribute values"
+            RepairType.MALFORMED_ATTRIBUTE, "Added quotes to unquoted attribute values"
         )
 
-    if '<![CDATA[' in repaired and '<![CDATA[' not in xml_string:
+    if "<![CDATA[" in repaired and "<![CDATA[" not in xml_string:
         # Added CDATA
-        report.add_action(
-            RepairType.CDATA_WRAPPED,
-            "Wrapped code content in CDATA section"
-        )
+        report.add_action(RepairType.CDATA_WRAPPED, "Wrapped code content in CDATA section")
 
     return repaired, report
 
@@ -153,7 +146,7 @@ def repair_xml_safe(
     strip_dangerous_tags: bool = False,
     wrap_multiple_roots: bool = False,
     sanitize_invalid_tags: bool = False,
-    fix_namespace_syntax: bool = False
+    fix_namespace_syntax: bool = False,
 ) -> str:
     """
     Safely repair XML with comprehensive error handling and validation.
@@ -210,19 +203,26 @@ def repair_xml_safe(
 
     # Step 2: Handle empty case early (after validation passes)
     if not xml_string.strip():
-        return ''
+        return ""
 
     # Step 3: Attempt repair with error handling
     try:
         # Use custom engine if any non-default features requested
-        if strip_dangerous_pis or strip_external_entities or strip_dangerous_tags or wrap_multiple_roots or sanitize_invalid_tags or fix_namespace_syntax:
+        if (
+            strip_dangerous_pis
+            or strip_external_entities
+            or strip_dangerous_tags
+            or wrap_multiple_roots
+            or sanitize_invalid_tags
+            or fix_namespace_syntax
+        ):
             custom_engine = XMLRepairEngine(
                 strip_dangerous_pis=strip_dangerous_pis,
                 strip_external_entities=strip_external_entities,
                 strip_dangerous_tags=strip_dangerous_tags,
                 wrap_multiple_roots=wrap_multiple_roots,
                 sanitize_invalid_tags=sanitize_invalid_tags,
-                fix_namespace_syntax=fix_namespace_syntax
+                fix_namespace_syntax=fix_namespace_syntax,
             )
             result = custom_engine.repair_xml(xml_string)
         else:
@@ -244,8 +244,7 @@ def repair_xml_safe(
     except IndexError as e:
         # Catch index errors from unexpected structure
         raise RepairError(
-            f"Index error during parsing: {e}. "
-            f"Input may contain unexpected structure."
+            f"Index error during parsing: {e}. Input may contain unexpected structure."
         ) from e
 
     except (ValidationError, MalformedXMLError, RepairError):
@@ -254,16 +253,11 @@ def repair_xml_safe(
 
     except Exception as e:
         # Catch-all for unexpected errors
-        raise RepairError(
-            f"Unexpected error during repair: {type(e).__name__}: {e}"
-        ) from e
+        raise RepairError(f"Unexpected error during repair: {type(e).__name__}: {e}") from e
 
 
 def parse_xml_safe(
-    xml_string: str,
-    strict: bool = False,
-    allow_empty: bool = False,
-    max_size: Optional[int] = None
+    xml_string: str, strict: bool = False, allow_empty: bool = False, max_size: Optional[int] = None
 ) -> Dict[str, Any]:
     """
     Safely parse malformed XML to dictionary with error handling.
@@ -297,10 +291,7 @@ def parse_xml_safe(
     """
     # Use repair_xml_safe for validation and repair
     repaired = repair_xml_safe(
-        xml_string,
-        strict=strict,
-        allow_empty=allow_empty,
-        max_size=max_size
+        xml_string, strict=strict, allow_empty=allow_empty, max_size=max_size
     )
 
     # Handle empty case
@@ -311,9 +302,7 @@ def parse_xml_safe(
     try:
         return _engine.xml_to_dict(repaired)
     except Exception as e:
-        raise RepairError(
-            f"Error converting XML to dictionary: {type(e).__name__}: {e}"
-        ) from e
+        raise RepairError(f"Error converting XML to dictionary: {type(e).__name__}: {e}") from e
 
 
 def repair_xml_lenient(xml_input: Any) -> str:
@@ -353,7 +342,7 @@ def repair_xml_lenient(xml_input: Any) -> str:
         # Convert to string if not already
         if not isinstance(xml_input, str):
             if xml_input is None:
-                return ''
+                return ""
             # Try to convert to string
             xml_input = str(xml_input)
 
@@ -362,7 +351,7 @@ def repair_xml_lenient(xml_input: Any) -> str:
 
     except Exception:
         # Silently return empty string on any error
-        return ''
+        return ""
 
 
 def parse_xml_lenient(xml_input: Any) -> Dict[str, Any]:
@@ -400,40 +389,32 @@ def parse_xml_lenient(xml_input: Any) -> Dict[str, Any]:
 # Public interface
 __all__ = [
     # Core functions
-    'repair_xml',
-    'parse_xml',
-
+    "repair_xml",
+    "parse_xml",
     # Safe functions with error handling
-    'repair_xml_safe',
-    'parse_xml_safe',
-
+    "repair_xml_safe",
+    "parse_xml_safe",
     # Lenient functions (never raise)
-    'repair_xml_lenient',
-    'parse_xml_lenient',
-
+    "repair_xml_lenient",
+    "parse_xml_lenient",
     # Advanced features (v0.5.0+)
-    'repair_xml_with_report',
-
+    "repair_xml_with_report",
     # Exceptions
-    'XenonException',
-    'ValidationError',
-    'MalformedXMLError',
-    'RepairError',
-
+    "XenonException",
+    "ValidationError",
+    "MalformedXMLError",
+    "RepairError",
     # Advanced usage - Core engine
-    'XMLRepairEngine',
-
+    "XMLRepairEngine",
     # Advanced usage - Configuration (v0.5.0+)
-    'XMLRepairConfig',
-    'SecurityFlags',
-    'RepairFlags',
-
+    "XMLRepairConfig",
+    "SecurityFlags",
+    "RepairFlags",
     # Advanced usage - Components (v0.5.0+)
-    'XMLPreprocessor',
-    'XMLSecurityFilter',
-
+    "XMLPreprocessor",
+    "XMLSecurityFilter",
     # Advanced usage - Reporting (v0.5.0+)
-    'RepairReport',
-    'RepairAction',
-    'RepairType',
+    "RepairReport",
+    "RepairAction",
+    "RepairType",
 ]

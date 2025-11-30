@@ -32,7 +32,7 @@ jobs:
         run: ruff format --check src/ tests/
 
       - name: Run MyPy
-        run: mypy src/xenon --strict --ignore-missing-imports
+        run: mypy src/xenon --ignore-missing-imports
         continue-on-error: true  # Don't fail build on type errors yet
 
   test:

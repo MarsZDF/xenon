@@ -27,10 +27,10 @@ class XMLParseState:
 class XMLRepairEngine:
     # Common namespace URIs for auto-injection
     COMMON_NAMESPACES = {
-        'soap': 'http://schemas.xmlsoap.org/soap/envelope/',
-        'xsi': 'http://www.w3.org/2001/XMLSchema-instance',
-        'xsd': 'http://www.w3.org/2001/XMLSchema',
-        'xs': 'http://www.w3.org/2001/XMLSchema',
+        "soap": "http://schemas.xmlsoap.org/soap/envelope/",
+        "xsi": "http://www.w3.org/2001/XMLSchema-instance",
+        "xsd": "http://www.w3.org/2001/XMLSchema",
+        "xs": "http://www.w3.org/2001/XMLSchema",
     }
 
     def __init__(
@@ -43,7 +43,7 @@ class XMLRepairEngine:
         strip_dangerous_tags: bool = False,
         wrap_multiple_roots: bool = False,
         sanitize_invalid_tags: bool = False,
-        fix_namespace_syntax: bool = False
+        fix_namespace_syntax: bool = False,
     ):
         """
         Initialize XML repair engine.
@@ -89,7 +89,7 @@ class XMLRepairEngine:
                 strip_dangerous_tags=strip_dangerous_tags,
                 wrap_multiple_roots=wrap_multiple_roots,
                 sanitize_invalid_tags=sanitize_invalid_tags,
-                fix_namespace_syntax=fix_namespace_syntax
+                fix_namespace_syntax=fix_namespace_syntax,
             )
 
         self.config = config
@@ -102,7 +102,9 @@ class XMLRepairEngine:
         # Backward compatibility properties
         self.match_threshold = config.match_threshold
         self.strip_dangerous_pis = config.has_security_feature(SecurityFlags.STRIP_DANGEROUS_PIS)
-        self.strip_external_entities = config.has_security_feature(SecurityFlags.STRIP_EXTERNAL_ENTITIES)
+        self.strip_external_entities = config.has_security_feature(
+            SecurityFlags.STRIP_EXTERNAL_ENTITIES
+        )
         self.strip_dangerous_tags = config.has_security_feature(SecurityFlags.STRIP_DANGEROUS_TAGS)
         self.wrap_multiple_roots = config.has_repair_feature(RepairFlags.WRAP_MULTIPLE_ROOTS)
         self.sanitize_invalid_tags = config.has_repair_feature(RepairFlags.SANITIZE_INVALID_TAGS)
@@ -179,7 +181,9 @@ class XMLRepairEngine:
 
         return previous_row[-1]
 
-    def find_best_matching_tag(self, closing_tag: str, tag_stack: List[Tuple[str, str]]) -> Optional[Tuple[int, str, int]]:
+    def find_best_matching_tag(
+        self, closing_tag: str, tag_stack: List[Tuple[str, str]]
+    ) -> Optional[Tuple[int, str, int]]:
         """
         Find the best matching tag in the stack for a closing tag.
 
@@ -196,7 +200,7 @@ class XMLRepairEngine:
             return None
 
         best_match = None
-        best_distance = float('inf')
+        best_distance = float("inf")
         best_index = -1
 
         # Search from top of stack (most recent) to bottom
@@ -232,15 +236,15 @@ class XMLRepairEngine:
         xml_start = -1
 
         # Look for XML declaration first
-        if text.startswith('<?xml'):
+        if text.startswith("<?xml"):
             xml_start = 0
         else:
             # Find first < that starts XML-like content
             for i, char in enumerate(text):
-                if char == '<' and i + 1 < len(text):
+                if char == "<" and i + 1 < len(text):
                     next_char = text[i + 1]
                     # Valid XML tag starts: <letter, <_, <:, </, <?, or <!
-                    if next_char.isalpha() or next_char in '_:/!?':
+                    if next_char.isalpha() or next_char in "_:/!?":
                         xml_start = i
                         break
 
@@ -254,9 +258,9 @@ class XMLRepairEngine:
 
         # Common patterns that indicate end of XML
         end_patterns = [
-            r'\s+(Hope\s+this\s+helps|Let\s+me\s+know|That\s+should)',
-            r'\s+(Please\s+let\s+me\s+know|Is\s+this\s+what)',
-            r'\s*\n\s*[A-Z][^<]*$',  # Newline followed by sentence not containing <
+            r"\s+(Hope\s+this\s+helps|Let\s+me\s+know|That\s+should)",
+            r"\s+(Please\s+let\s+me\s+know|Is\s+this\s+what)",
+            r"\s*\n\s*[A-Z][^<]*$",  # Newline followed by sentence not containing <
         ]
 
         # Only trim if we find clear conversational patterns
@@ -266,7 +270,7 @@ class XMLRepairEngine:
                 potential_end = xml_start + match.start()
                 # Make sure we end at a > if possible
                 for i in range(potential_end - 1, xml_start, -1):
-                    if text[i] == '>':
+                    if text[i] == ">":
                         xml_end = i + 1
                         break
                 break
@@ -278,7 +282,7 @@ class XMLRepairEngine:
         content = tag_content.strip()
 
         # Extract tag name first (everything before the first = or first space followed by word=)
-        tag_name = ''
+        tag_name = ""
         attr_start_pos = 0
         i = 0
 
@@ -313,12 +317,12 @@ class XMLRepairEngine:
             attr_start = i
 
             # Find attribute name
-            while i < len(content) and (content[i].isalnum() or content[i] in '_-:'):
+            while i < len(content) and (content[i].isalnum() or content[i] in "_-:"):
                 i += 1
 
-            if i >= len(content) or content[i] != '=':
+            if i >= len(content) or content[i] != "=":
                 # Not an attribute, just copy the rest
-                result.append(' ')
+                result.append(" ")
                 result.append(content[attr_start:])
                 break
 
@@ -345,9 +349,11 @@ class XMLRepairEngine:
                                 j += 1
                             if j < len(content):
                                 k = j
-                                while k < len(content) and (content[k].isalnum() or content[k] in '_-:'):
+                                while k < len(content) and (
+                                    content[k].isalnum() or content[k] in "_-:"
+                                ):
                                     k += 1
-                                if k < len(content) and content[k] == '=':
+                                if k < len(content) and content[k] == "=":
                                     break
                         i += 1
                 continue
@@ -371,7 +377,7 @@ class XMLRepairEngine:
                     i += 1  # Skip the closing quote
                 # Escape the value and add with quotes
                 escaped_value = self.escape_attribute_value(value, quote_char)
-                result.append(f' {attr_name}={quote_char}{escaped_value}{quote_char}')
+                result.append(f" {attr_name}={quote_char}{escaped_value}{quote_char}")
             else:
                 # Unquoted value, collect until next attribute or end
                 value_start = i
@@ -386,9 +392,11 @@ class XMLRepairEngine:
 
                         # Check if we have word= pattern ahead
                         if j < len(content):
-                            while j < len(content) and (content[j].isalnum() or content[j] in '_-:'):
+                            while j < len(content) and (
+                                content[j].isalnum() or content[j] in "_-:"
+                            ):
                                 j += 1
-                            if j < len(content) and content[j] == '=':
+                            if j < len(content) and content[j] == "=":
                                 # This is a new attribute, stop here
                                 break
                     i += 1
@@ -398,7 +406,7 @@ class XMLRepairEngine:
                 escaped_value = self.escape_attribute_value(value, '"')
                 result.append(f' {attr_name}="{escaped_value}"')
 
-        return ''.join(result)
+        return "".join(result)
 
     def detect_cdata_needed(self, text: str) -> bool:
         """
@@ -413,22 +421,41 @@ class XMLRepairEngine:
             return False
 
         # Check if already has CDATA
-        if '<![CDATA[' in text:
+        if "<![CDATA[" in text:
             return False
 
         # Count special characters, but exclude valid entity references
         import re
-        # Remove valid entities before counting
-        valid_entity_pattern = r'&(?:lt|gt|amp|quot|apos|#\d+|#x[0-9a-fA-F]+);'
-        text_without_entities = re.sub(valid_entity_pattern, '', text)
 
-        special_count = text_without_entities.count('<') + text_without_entities.count('>') + text_without_entities.count('&')
+        # Remove valid entities before counting
+        valid_entity_pattern = r"&(?:lt|gt|amp|quot|apos|#\d+|#x[0-9a-fA-F]+);"
+        text_without_entities = re.sub(valid_entity_pattern, "", text)
+
+        special_count = (
+            text_without_entities.count("<")
+            + text_without_entities.count(">")
+            + text_without_entities.count("&")
+        )
         if special_count >= 3:
             return True
 
         # Check for code keywords (case-insensitive)
-        code_keywords = ['if(', 'for(', 'while(', 'function', 'class ', 'def ',
-                        'var ', 'let ', 'const ', 'return ', '&&', '||', '!=', '==']
+        code_keywords = [
+            "if(",
+            "for(",
+            "while(",
+            "function",
+            "class ",
+            "def ",
+            "var ",
+            "let ",
+            "const ",
+            "return ",
+            "&&",
+            "||",
+            "!=",
+            "==",
+        ]
         text_lower = text.lower()
         for keyword in code_keywords:
             if keyword in text_lower:
@@ -443,8 +470,8 @@ class XMLRepairEngine:
         SECURITY: Escape ]]> to prevent CDATA injection attacks.
         """
         # Escape ]]> to prevent CDATA breakout
-        safe_text = text.replace(']]>', ']]]]><![CDATA[>')
-        return f'<![CDATA[{safe_text}]]>'
+        safe_text = text.replace("]]>", "]]]]><![CDATA[>")
+        return f"<![CDATA[{safe_text}]]>"
 
     def extract_namespaces(self, xml: str) -> Dict[str, str]:
         """
@@ -457,7 +484,7 @@ class XMLRepairEngine:
         namespaces = {}
 
         # Find all namespace prefixes (prefix:tagname pattern)
-        prefix_pattern = r'</?([a-zA-Z][a-zA-Z0-9]*):([a-zA-Z][a-zA-Z0-9]*)'
+        prefix_pattern = r"</?([a-zA-Z][a-zA-Z0-9]*):([a-zA-Z][a-zA-Z0-9]*)"
         matches = re.findall(prefix_pattern, xml)
 
         for prefix, _ in matches:
@@ -505,24 +532,26 @@ class XMLRepairEngine:
         # Pattern to match valid entity references
         # Matches: &lt; &gt; &amp; &quot; &apos; &#digits; &#xhex;
         import re
-        valid_entity_pattern = r'&(?:lt|gt|amp|quot|apos|#\d+|#x[0-9a-fA-F]+);'
+
+        valid_entity_pattern = r"&(?:lt|gt|amp|quot|apos|#\d+|#x[0-9a-fA-F]+);"
 
         # Find all valid entities and temporarily replace them with placeholders
         entities = []
+
         def save_entity(match):
             entities.append(match.group(0))
-            return f'\x00ENTITY{len(entities)-1}\x00'
+            return f"\x00ENTITY{len(entities) - 1}\x00"
 
         text = re.sub(valid_entity_pattern, save_entity, text)
 
         # Now escape the remaining special characters
-        text = text.replace('&', '&amp;')
-        text = text.replace('<', '&lt;')
-        text = text.replace('>', '&gt;')
+        text = text.replace("&", "&amp;")
+        text = text.replace("<", "&lt;")
+        text = text.replace(">", "&gt;")
 
         # Restore the valid entities
         for i, entity in enumerate(entities):
-            text = text.replace(f'\x00ENTITY{i}\x00', entity)
+            text = text.replace(f"\x00ENTITY{i}\x00", entity)
 
         return text
 
@@ -535,30 +564,32 @@ class XMLRepairEngine:
         """
         # Pattern to match valid entity references
         import re
-        valid_entity_pattern = r'&(?:lt|gt|amp|quot|apos|#\d+|#x[0-9a-fA-F]+);'
+
+        valid_entity_pattern = r"&(?:lt|gt|amp|quot|apos|#\d+|#x[0-9a-fA-F]+);"
 
         # Find all valid entities and temporarily replace them with placeholders
         entities = []
+
         def save_entity(match):
             entities.append(match.group(0))
-            return f'\x00ENTITY{len(entities)-1}\x00'
+            return f"\x00ENTITY{len(entities) - 1}\x00"
 
         value = re.sub(valid_entity_pattern, save_entity, value)
 
         # Escape special characters
-        value = value.replace('&', '&amp;')
-        value = value.replace('<', '&lt;')
-        value = value.replace('>', '&gt;')
+        value = value.replace("&", "&amp;")
+        value = value.replace("<", "&lt;")
+        value = value.replace(">", "&gt;")
 
         # Escape the quote character being used
         if quote_char == '"':
-            value = value.replace('"', '&quot;')
+            value = value.replace('"', "&quot;")
         else:  # single quote
-            value = value.replace("'", '&apos;')
+            value = value.replace("'", "&apos;")
 
         # Restore the valid entities
         for i, entity in enumerate(entities):
-            value = value.replace(f'\x00ENTITY{i}\x00', entity)
+            value = value.replace(f"\x00ENTITY{i}\x00", entity)
 
         return value
 
@@ -567,78 +598,83 @@ class XMLRepairEngine:
         i = 0
 
         while i < len(xml_string):
-            if xml_string[i] == '<':
+            if xml_string[i] == "<":
                 # Check if this is actually a tag or just < in text
                 if i + 1 >= len(xml_string):
                     # Just a < at end, treat as text
-                    tokens.append(XMLToken('text', '<', i))
+                    tokens.append(XMLToken("text", "<", i))
                     i += 1
                     continue
 
                 next_char = xml_string[i + 1]
                 # Valid tag start characters: letters, _, :, /, ?, !
-                if not (next_char.isalpha() or next_char in '_:/!?'):
+                if not (next_char.isalpha() or next_char in "_:/!?"):
                     # Not a tag start, treat as text content
                     text_start = i
-                    while i < len(xml_string) and (xml_string[i] != '<' or
-                                                   (i + 1 < len(xml_string) and not (xml_string[i + 1].isalpha() or xml_string[i + 1] in '_:/!?'))):
+                    while i < len(xml_string) and (
+                        xml_string[i] != "<"
+                        or (
+                            i + 1 < len(xml_string)
+                            and not (xml_string[i + 1].isalpha() or xml_string[i + 1] in "_:/!?")
+                        )
+                    ):
                         i += 1
                     text_content = xml_string[text_start:i]
                     if text_content:
-                        tokens.append(XMLToken('text', text_content, text_start))
+                        tokens.append(XMLToken("text", text_content, text_start))
                     continue
 
                 # Handle XML declaration/processing instruction
-                if xml_string[i:i+5] == '<?xml' or xml_string[i:i+2] == '<?':
+                if xml_string[i : i + 5] == "<?xml" or xml_string[i : i + 2] == "<?":
                     # Find end of processing instruction
-                    pi_end = xml_string.find('?>', i + 2)
+                    pi_end = xml_string.find("?>", i + 2)
                     if pi_end != -1:
                         pi_end += 2
                         pi_content = xml_string[i:pi_end]
-                        tokens.append(XMLToken('processing_instruction', pi_content, i))
+                        tokens.append(XMLToken("processing_instruction", pi_content, i))
                         i = pi_end
                         continue
                     else:
                         # Malformed PI, treat as incomplete tag
-                        tokens.append(XMLToken('incomplete_tag', xml_string[i+1:], i))
+                        tokens.append(XMLToken("incomplete_tag", xml_string[i + 1 :], i))
                         break
 
                 # Handle DOCTYPE, comments, and CDATA
-                if xml_string[i:i+2] == '<!':
+                if xml_string[i : i + 2] == "<!":
                     # Check for comments <!--
-                    if xml_string[i:i+4] == '<!--':
-                        comment_end = xml_string.find('-->', i + 4)
+                    if xml_string[i : i + 4] == "<!--":
+                        comment_end = xml_string.find("-->", i + 4)
                         if comment_end != -1:
                             comment_end += 3
                             comment_content = xml_string[i:comment_end]
-                            tokens.append(XMLToken('comment', comment_content, i))
+                            tokens.append(XMLToken("comment", comment_content, i))
                             i = comment_end
                             continue
                     # Check for CDATA <![CDATA[
-                    elif xml_string[i:i+9] == '<![CDATA[':
-                        cdata_end = xml_string.find(']]>', i + 9)
+                    elif xml_string[i : i + 9] == "<![CDATA[":
+                        cdata_end = xml_string.find("]]>", i + 9)
                         if cdata_end != -1:
                             cdata_end += 3
                             cdata_content = xml_string[i:cdata_end]
-                            tokens.append(XMLToken('cdata', cdata_content, i))
+                            tokens.append(XMLToken("cdata", cdata_content, i))
                             i = cdata_end
                             continue
                     # Check for DOCTYPE
-                    elif xml_string[i:i+9].upper() == '<!DOCTYPE':
+                    elif xml_string[i : i + 9].upper() == "<!DOCTYPE":
                         # Find end of DOCTYPE (may include internal subset with [])
                         doctype_end = i + 9
                         in_bracket = False
                         while doctype_end < len(xml_string):
-                            if xml_string[doctype_end] == '[':
+                            if xml_string[doctype_end] == "[":
                                 in_bracket = True
-                            elif xml_string[doctype_end] == ']':
+                            elif xml_string[doctype_end] == "]":
                                 in_bracket = False
-                            elif xml_string[doctype_end] == '>' and not in_bracket:
+                            elif xml_string[doctype_end] == ">" and not in_bracket:
                                 doctype_end += 1
                                 break
                             doctype_end += 1
                         doctype_content = xml_string[i:doctype_end]
-                        tokens.append(XMLToken('doctype', doctype_content, i))
+                        tokens.append(XMLToken("doctype", doctype_content, i))
                         i = doctype_end
                         continue
 
@@ -654,7 +690,7 @@ class XMLRepairEngine:
                         if char in ['"', "'"]:
                             in_quotes = True
                             quote_char = char
-                        elif char == '>':
+                        elif char == ">":
                             tag_end += 1
                             break
                     else:
@@ -666,47 +702,55 @@ class XMLRepairEngine:
 
                 tag_content = xml_string[i:tag_end]
 
-                if tag_content.endswith('>'):
+                if tag_content.endswith(">"):
                     # Complete tag
-                    if tag_content.startswith('</'):
+                    if tag_content.startswith("</"):
                         # Closing tag
                         tag_name = tag_content[2:-1].strip()
-                        tokens.append(XMLToken('close_tag', tag_name, i))
-                    elif tag_content.endswith('/>'):
+                        tokens.append(XMLToken("close_tag", tag_name, i))
+                    elif tag_content.endswith("/>"):
                         # Self-closing tag
                         tag_content_inner = tag_content[1:-2].strip()
                         tag_content_inner = self.fix_malformed_attributes(tag_content_inner)
-                        tokens.append(XMLToken('self_closing_tag', tag_content_inner, i))
+                        tokens.append(XMLToken("self_closing_tag", tag_content_inner, i))
                     else:
                         # Opening tag
                         tag_content_inner = tag_content[1:-1].strip()
                         tag_content_inner = self.fix_malformed_attributes(tag_content_inner)
-                        tag_name = tag_content_inner.split()[0] if tag_content_inner.split() else tag_content_inner
-                        tokens.append(XMLToken('open_tag', tag_content_inner, i))
-                        tokens.append(XMLToken('tag_name', tag_name, i))
+                        tag_name = (
+                            tag_content_inner.split()[0]
+                            if tag_content_inner.split()
+                            else tag_content_inner
+                        )
+                        tokens.append(XMLToken("open_tag", tag_content_inner, i))
+                        tokens.append(XMLToken("tag_name", tag_name, i))
                 else:
                     # Incomplete tag (truncated) - include everything to end
-                    tag_content_inner = xml_string[i+1:].strip()
+                    tag_content_inner = xml_string[i + 1 :].strip()
                     if tag_content_inner:
                         tag_content_inner = self.fix_malformed_attributes(tag_content_inner)
-                        tag_name = tag_content_inner.split()[0] if tag_content_inner.split() else tag_content_inner
-                        tokens.append(XMLToken('incomplete_tag', tag_content_inner, i))
-                        tokens.append(XMLToken('tag_name', tag_name, i))
+                        tag_name = (
+                            tag_content_inner.split()[0]
+                            if tag_content_inner.split()
+                            else tag_content_inner
+                        )
+                        tokens.append(XMLToken("incomplete_tag", tag_content_inner, i))
+                        tokens.append(XMLToken("tag_name", tag_name, i))
                     break  # End of input, truncated
 
                 i = tag_end
             else:
                 # Text content
                 text_start = i
-                while i < len(xml_string) and xml_string[i] != '<':
+                while i < len(xml_string) and xml_string[i] != "<":
                     i += 1
 
                 text_content = xml_string[text_start:i]
                 if text_content.strip():
                     # Don't escape here, do it during output
-                    tokens.append(XMLToken('text', text_content, text_start))
+                    tokens.append(XMLToken("text", text_content, text_start))
                 elif text_content:  # Preserve whitespace
-                    tokens.append(XMLToken('whitespace', text_content, text_start))
+                    tokens.append(XMLToken("whitespace", text_content, text_start))
 
         return tokens
 
@@ -734,24 +778,24 @@ class XMLRepairEngine:
         while i < len(tokens):
             token = tokens[i]
 
-            if token.type == 'processing_instruction':
+            if token.type == "processing_instruction":
                 # Security: Skip dangerous processing instructions if enabled
                 if self.security_filter.should_strip_dangerous_pi(token.content):
                     # Skip this token - don't add to output
                     i += 1
                     continue
                 result.append(token.content)
-            elif token.type == 'open_tag':
+            elif token.type == "open_tag":
                 # Extract tag name for stack (store both original and lowercase)
                 tag_name = None
-                if i + 1 < len(tokens) and tokens[i + 1].type == 'tag_name':
+                if i + 1 < len(tokens) and tokens[i + 1].type == "tag_name":
                     tag_name = tokens[i + 1].content
 
                 # Security: Skip dangerous tags if enabled
                 if tag_name and self.security_filter.should_strip_dangerous_tag(tag_name):
                     # Skip this tag but process content
                     dangerous_tag_stack.append((tag_name, tag_name.lower()))
-                    if i + 1 < len(tokens) and tokens[i + 1].type == 'tag_name':
+                    if i + 1 < len(tokens) and tokens[i + 1].type == "tag_name":
                         i += 1  # Skip the tag_name token
                     i += 1
                     continue
@@ -759,17 +803,17 @@ class XMLRepairEngine:
                 # Inject namespaces into first open tag (root element)
                 if first_open_tag and namespaces:
                     updated_content = self.inject_namespace_declarations(token.content, namespaces)
-                    result.append(f'<{updated_content}>')
+                    result.append(f"<{updated_content}>")
                     first_open_tag = False
                 else:
-                    result.append(f'<{token.content}>')
+                    result.append(f"<{token.content}>")
                     first_open_tag = False
 
                 if tag_name:
                     tag_stack.append((tag_name, tag_name.lower()))
                     i += 1  # Skip the tag_name token
                     # Don't fall through to i += 1 at end of loop - we already incremented
-            elif token.type == 'close_tag':
+            elif token.type == "close_tag":
                 # Mismatched tag detection with similarity matching
                 closing_tag_lower = token.content.lower()
 
@@ -803,45 +847,45 @@ class XMLRepairEngine:
 
                     # Output all the closing tags
                     for tag in tags_to_close:
-                        result.append(f'</{tag}>')
+                        result.append(f"</{tag}>")
                 else:
                     # No good match found, output as-is
                     # This might be an extra closing tag or severely mismatched
-                    result.append(f'</{token.content}>')
-            elif token.type == 'self_closing_tag':
-                result.append(f'<{token.content}/>')
-            elif token.type == 'incomplete_tag':
+                    result.append(f"</{token.content}>")
+            elif token.type == "self_closing_tag":
+                result.append(f"<{token.content}/>")
+            elif token.type == "incomplete_tag":
                 # Handle truncated tags
                 # Inject namespaces into first tag if needed
                 if first_open_tag and namespaces:
                     updated_content = self.inject_namespace_declarations(token.content, namespaces)
-                    result.append(f'<{updated_content}>')
+                    result.append(f"<{updated_content}>")
                     first_open_tag = False
                 else:
-                    result.append(f'<{token.content}>')
+                    result.append(f"<{token.content}>")
                     first_open_tag = False
 
-                if i + 1 < len(tokens) and tokens[i + 1].type == 'tag_name':
+                if i + 1 < len(tokens) and tokens[i + 1].type == "tag_name":
                     tag_name = tokens[i + 1].content
                     tag_stack.append((tag_name, tag_name.lower()))
                     i += 1  # Skip the tag_name token
-            elif token.type == 'text':
+            elif token.type == "text":
                 # Check if text needs CDATA wrapping (code, special chars)
                 if self.detect_cdata_needed(token.content):
                     result.append(self.wrap_in_cdata(token.content))
                 else:
                     escaped_text = self.escape_entities(token.content)
                     result.append(escaped_text)
-            elif token.type == 'whitespace':
+            elif token.type == "whitespace":
                 result.append(token.content)
-            elif token.type == 'doctype':
+            elif token.type == "doctype":
                 # DOCTYPE declarations are preserved unless security flag is set
                 # (They were already stripped in extract_xml_content if flag was set)
                 result.append(token.content)
-            elif token.type == 'comment':
+            elif token.type == "comment":
                 # Comments are preserved
                 result.append(token.content)
-            elif token.type == 'cdata':
+            elif token.type == "cdata":
                 # CDATA sections are preserved
                 result.append(token.content)
 
@@ -850,9 +894,9 @@ class XMLRepairEngine:
         # Step 4: Close any remaining open tags
         while tag_stack:
             tag_name = tag_stack.pop()[0]  # Use original case
-            result.append(f'</{tag_name}>')
+            result.append(f"</{tag_name}>")
 
-        repaired = ''.join(result)
+        repaired = "".join(result)
 
         # Step 5: Wrap multiple roots if requested
         if self.wrap_multiple_roots:
@@ -881,24 +925,24 @@ class XMLRepairEngine:
         pis_before_root = []
 
         for token in tokens:
-            if token.type == 'processing_instruction':
-                if token.content.startswith('<?xml'):
+            if token.type == "processing_instruction":
+                if token.content.startswith("<?xml"):
                     xml_declaration = token.content
                 elif depth == 0:
                     pis_before_root.append(token.content)
-            elif token.type == 'open_tag' or token.type == 'incomplete_tag':
+            elif token.type == "open_tag" or token.type == "incomplete_tag":
                 if depth == 0:
                     root_count += 1
                 depth += 1
-            elif token.type == 'close_tag':
+            elif token.type == "close_tag":
                 depth -= 1
-            elif token.type == 'self_closing_tag':
+            elif token.type == "self_closing_tag":
                 if depth == 0:
                     root_count += 1
-            elif token.type == 'text' and depth == 0:
+            elif token.type == "text" and depth == 0:
                 if token.content.strip():  # Non-whitespace text at top level
                     has_top_level_text = True
-            elif token.type in ('comment', 'doctype', 'cdata') and depth == 0:
+            elif token.type in ("comment", "doctype", "cdata") and depth == 0:
                 # These at top level also indicate need for wrapping
                 pass
 
@@ -912,27 +956,27 @@ class XMLRepairEngine:
         # Preserve XML declaration if present
         if xml_declaration:
             result.append(xml_declaration)
-            result.append('\n')
+            result.append("\n")
 
         # Preserve processing instructions before root
         for pi in pis_before_root:
             result.append(pi)
-            result.append('\n')
+            result.append("\n")
 
         # Add synthetic root
-        result.append('<document>')
+        result.append("<document>")
 
         # Add the content (strip any leading/trailing XML declaration and PIs)
         content = xml_string
         if xml_declaration:
-            content = content.replace(xml_declaration, '', 1)
+            content = content.replace(xml_declaration, "", 1)
         for pi in pis_before_root:
-            content = content.replace(pi, '', 1)
+            content = content.replace(pi, "", 1)
 
         result.append(content.strip())
-        result.append('</document>')
+        result.append("</document>")
 
-        return ''.join(result)
+        return "".join(result)
 
     def xml_to_dict(self, xml_string: str) -> Dict[str, Any]:
         # Simple XML to dict converter
@@ -953,7 +997,7 @@ class XMLRepairEngine:
         while i < len(tokens):
             token = tokens[i]
 
-            if token.type == 'open_tag':
+            if token.type == "open_tag":
                 # Parse tag with attributes
                 tag_content = token.content
                 parts = tag_content.split()
@@ -963,10 +1007,10 @@ class XMLRepairEngine:
 
                 # Parse attributes
                 if len(parts) > 1:
-                    attr_text = ' '.join(parts[1:])
+                    attr_text = " ".join(parts[1:])
                     attrs = self._parse_attributes(attr_text)
                     if attrs:
-                        new_element['@attributes'] = attrs
+                        new_element["@attributes"] = attrs
 
                 # Add to current level
                 current_dict = stack[-1]
@@ -981,22 +1025,22 @@ class XMLRepairEngine:
                 stack.append(new_element)
                 current_element = tag_name
 
-            elif token.type == 'close_tag':
+            elif token.type == "close_tag":
                 # Add accumulated text if any
                 if text_buffer:
-                    text_content = ''.join(text_buffer).strip()
+                    text_content = "".join(text_buffer).strip()
                     if text_content and len(stack) > 1:
                         current_dict = stack[-1]
                         if not current_dict:  # Empty dict, just add text
                             stack[-2][current_element] = text_content
                         else:  # Has attributes, add text content
-                            current_dict['#text'] = text_content
+                            current_dict["#text"] = text_content
                     text_buffer = []
 
                 if len(stack) > 1:
                     stack.pop()
 
-            elif token.type == 'self_closing_tag':
+            elif token.type == "self_closing_tag":
                 tag_content = token.content
                 parts = tag_content.split()
                 tag_name = parts[0] if parts else tag_content
@@ -1005,7 +1049,7 @@ class XMLRepairEngine:
 
                 # Parse attributes
                 if len(parts) > 1:
-                    attr_text = ' '.join(parts[1:])
+                    attr_text = " ".join(parts[1:])
                     attrs = self._parse_attributes(attr_text)
                     if attrs:
                         element_data = attrs
@@ -1019,7 +1063,7 @@ class XMLRepairEngine:
                 else:
                     current_dict[tag_name] = element_data
 
-            elif token.type == 'text':
+            elif token.type == "text":
                 text_buffer.append(token.content)
 
             i += 1

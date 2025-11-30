@@ -6,6 +6,7 @@ from enum import Flag, auto
 
 class SecurityFlags(Flag):
     """Security feature flags."""
+
     NONE = 0
     STRIP_DANGEROUS_PIS = auto()
     STRIP_EXTERNAL_ENTITIES = auto()
@@ -14,6 +15,7 @@ class SecurityFlags(Flag):
 
 class RepairFlags(Flag):
     """Repair feature flags."""
+
     NONE = 0
     WRAP_MULTIPLE_ROOTS = auto()
     SANITIZE_INVALID_TAGS = auto()
@@ -55,8 +57,8 @@ class XMLRepairConfig:
         strip_dangerous_tags: bool = False,
         wrap_multiple_roots: bool = False,
         sanitize_invalid_tags: bool = False,
-        fix_namespace_syntax: bool = False
-    ) -> 'XMLRepairConfig':
+        fix_namespace_syntax: bool = False,
+    ) -> "XMLRepairConfig":
         """
         Create config from individual boolean parameters.
 
@@ -78,11 +80,7 @@ class XMLRepairConfig:
         if fix_namespace_syntax:
             repair |= RepairFlags.FIX_NAMESPACE_SYNTAX
 
-        return cls(
-            match_threshold=match_threshold,
-            security=security,
-            repair=repair
-        )
+        return cls(match_threshold=match_threshold, security=security, repair=repair)
 
     def has_security_feature(self, flag: SecurityFlags) -> bool:
         """Check if a security feature is enabled."""

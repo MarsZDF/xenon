@@ -13,10 +13,10 @@ class XMLSecurityFilter:
     """
 
     # Patterns for dangerous processing instructions
-    DANGEROUS_PI_PATTERNS = ['php', 'asp', 'jsp', 'ruby', 'python', 'perl', 'exec']
+    DANGEROUS_PI_PATTERNS = ["php", "asp", "jsp", "ruby", "python", "perl", "exec"]
 
     # Dangerous tags for XSS prevention
-    DANGEROUS_TAGS = ['script', 'iframe', 'object', 'embed', 'applet', 'meta', 'link', 'style']
+    DANGEROUS_TAGS = ["script", "iframe", "object", "embed", "applet", "meta", "link", "style"]
 
     def __init__(self, config: XMLRepairConfig):
         """
@@ -42,7 +42,7 @@ class XMLSecurityFilter:
             True if PI looks like executable code
         """
         pi_lower = pi_content.lower()
-        return any(f'<?{pattern}' in pi_lower for pattern in self.DANGEROUS_PI_PATTERNS)
+        return any(f"<?{pattern}" in pi_lower for pattern in self.DANGEROUS_PI_PATTERNS)
 
     def is_dangerous_tag(self, tag_name: str) -> bool:
         """
@@ -57,7 +57,7 @@ class XMLSecurityFilter:
         Returns:
             True if tag is in dangerous list
         """
-        tag_lower = tag_name.lower().split()[0] if tag_name else ''
+        tag_lower = tag_name.lower().split()[0] if tag_name else ""
         return tag_lower in self.DANGEROUS_TAGS
 
     def contains_external_entity(self, doctype: str) -> bool:
@@ -74,7 +74,7 @@ class XMLSecurityFilter:
             True if external entities are present
         """
         doctype_upper = doctype.upper()
-        return 'SYSTEM' in doctype_upper or 'PUBLIC' in doctype_upper
+        return "SYSTEM" in doctype_upper or "PUBLIC" in doctype_upper
 
     def should_strip_dangerous_pi(self, pi_content: str) -> bool:
         """
@@ -86,8 +86,9 @@ class XMLSecurityFilter:
         Returns:
             True if we should strip it
         """
-        return (self.config.has_security_feature(SecurityFlags.STRIP_DANGEROUS_PIS) and
-                self.is_dangerous_pi(pi_content))
+        return self.config.has_security_feature(
+            SecurityFlags.STRIP_DANGEROUS_PIS
+        ) and self.is_dangerous_pi(pi_content)
 
     def should_strip_dangerous_tag(self, tag_name: str) -> bool:
         """
@@ -99,8 +100,9 @@ class XMLSecurityFilter:
         Returns:
             True if we should strip it
         """
-        return (self.config.has_security_feature(SecurityFlags.STRIP_DANGEROUS_TAGS) and
-                self.is_dangerous_tag(tag_name))
+        return self.config.has_security_feature(
+            SecurityFlags.STRIP_DANGEROUS_TAGS
+        ) and self.is_dangerous_tag(tag_name)
 
     def strip_external_entities_from_text(self, text: str) -> str:
         """
@@ -116,9 +118,4 @@ class XMLSecurityFilter:
             return text
 
         # Remove DOCTYPE declarations (may contain external entities)
-        return re.sub(
-            r'<!DOCTYPE(?:[^>\[]|\[.*?\])*>',
-            '',
-            text,
-            flags=re.DOTALL | re.IGNORECASE
-        )
+        return re.sub(r"<!DOCTYPE(?:[^>\[]|\[.*?\])*>", "", text, flags=re.DOTALL | re.IGNORECASE)

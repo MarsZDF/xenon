@@ -13,6 +13,7 @@ class XenonException(Exception):
     All custom exceptions in Xenon inherit from this class, making it easy
     to catch all Xenon-specific errors with a single except clause.
     """
+
     pass
 
 
@@ -29,6 +30,7 @@ class ValidationError(XenonException):
         - Passing an empty string when allow_empty=False
         - Input exceeds maximum size limit
     """
+
     pass
 
 
@@ -42,6 +44,7 @@ class MalformedXMLError(XenonException):
     In default mode, Xenon will attempt to repair any XML and return
     the best-effort result without raising this exception.
     """
+
     pass
 
 
@@ -55,4 +58,5 @@ class RepairError(XenonException):
     If you encounter this error, please report it with the input XML
     that caused it.
     """
+
     pass

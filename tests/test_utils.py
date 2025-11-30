@@ -21,58 +21,58 @@ class TestEncodingDetection:
         """Test UTF-8 BOM detection."""
         xml_bytes = b'\xef\xbb\xbf<?xml version="1.0"?><root/>'
         encoding = detect_encoding(xml_bytes)
-        assert encoding == 'utf-8-sig'
+        assert encoding == "utf-8-sig"
 
     def test_detect_utf16_le_bom(self):
         """Test UTF-16 LE BOM detection."""
-        xml_bytes = b'\xff\xfe<\x00?\x00x\x00m\x00l\x00'
+        xml_bytes = b"\xff\xfe<\x00?\x00x\x00m\x00l\x00"
         encoding = detect_encoding(xml_bytes)
-        assert encoding == 'utf-16-le'
+        assert encoding == "utf-16-le"
 
     def test_detect_utf16_be_bom(self):
         """Test UTF-16 BE BOM detection."""
-        xml_bytes = b'\xfe\xff\x00<\x00?\x00x\x00m\x00l'
+        xml_bytes = b"\xfe\xff\x00<\x00?\x00x\x00m\x00l"
         encoding = detect_encoding(xml_bytes)
-        assert encoding == 'utf-16-be'
+        assert encoding == "utf-16-be"
 
     def test_detect_utf32_le_bom(self):
         """Test UTF-32 LE BOM detection."""
-        xml_bytes = b'\xff\xfe\x00\x00<\x00\x00\x00'
+        xml_bytes = b"\xff\xfe\x00\x00<\x00\x00\x00"
         encoding = detect_encoding(xml_bytes)
-        assert encoding == 'utf-32-le'
+        assert encoding == "utf-32-le"
 
     def test_detect_utf32_be_bom(self):
         """Test UTF-32 BE BOM detection."""
-        xml_bytes = b'\x00\x00\xfe\xff\x00\x00\x00<'
+        xml_bytes = b"\x00\x00\xfe\xff\x00\x00\x00<"
         encoding = detect_encoding(xml_bytes)
-        assert encoding == 'utf-32-be'
+        assert encoding == "utf-32-be"
 
     def test_detect_from_declaration(self):
         """Test encoding detection from XML declaration."""
         xml_bytes = b'<?xml version="1.0" encoding="iso-8859-1"?><root/>'
         encoding = detect_encoding(xml_bytes)
-        assert encoding == 'iso-8859-1'
+        assert encoding == "iso-8859-1"
 
     def test_detect_from_declaration_case_insensitive(self):
         """Test case-insensitive encoding detection."""
         xml_bytes = b'<?xml version="1.0" ENCODING="UTF-8"?><root/>'
         encoding = detect_encoding(xml_bytes)
-        assert encoding == 'UTF-8'
+        assert encoding == "UTF-8"
 
     def test_detect_default_utf8(self):
         """Test default UTF-8 when no encoding specified."""
         xml_bytes = b'<?xml version="1.0"?><root/>'
         encoding = detect_encoding(xml_bytes)
-        assert encoding == 'utf-8'
+        assert encoding == "utf-8"
 
     def test_detect_fallback_to_latin1(self):
         """Test fallback to latin-1 on error."""
         # Invalid UTF-8 bytes - but errors='ignore' means no exception
         # So it will default to utf-8 instead of falling back
-        xml_bytes = b'\xff\xff\xff<root/>'
+        xml_bytes = b"\xff\xff\xff<root/>"
         encoding = detect_encoding(xml_bytes)
         # With errors='ignore', no exception is raised, so defaults to utf-8
-        assert encoding == 'utf-8'
+        assert encoding == "utf-8"
 
     def test_decode_xml_auto(self):
         """Test automatic decoding."""
@@ -82,15 +82,15 @@ class TestEncodingDetection:
 
     def test_decode_xml_explicit(self):
         """Test decoding with explicit encoding."""
-        xml_bytes = b'<root>test</root>'
-        result = decode_xml(xml_bytes, encoding='utf-8')
-        assert result == '<root>test</root>'
+        xml_bytes = b"<root>test</root>"
+        result = decode_xml(xml_bytes, encoding="utf-8")
+        assert result == "<root>test</root>"
 
     def test_decode_xml_fallback(self):
         """Test fallback on decode error."""
         # Invalid encoding for the bytes
-        xml_bytes = b'\xff\xfe<\x00r\x00o\x00o\x00t\x00>\x00'  # UTF-16 LE
-        result = decode_xml(xml_bytes, encoding='ascii')
+        xml_bytes = b"\xff\xfe<\x00r\x00o\x00o\x00t\x00>\x00"  # UTF-16 LE
+        result = decode_xml(xml_bytes, encoding="ascii")
         # Should fallback to UTF-8 with replacement
         assert isinstance(result, str)
 
@@ -100,41 +100,33 @@ class TestBatchRepair:
 
     def test_batch_repair_all_valid(self):
         """Test batch repair with all valid XML."""
-        xml_batch = [
-            '<root>item1</root>',
-            '<root>item2</root>',
-            '<root>item3</root>'
-        ]
+        xml_batch = ["<root>item1</root>", "<root>item2</root>", "<root>item3</root>"]
         results = batch_repair(xml_batch)
 
         assert len(results) == 3
         for xml, error in results:
             assert error is None
-            assert '<root>' in xml
+            assert "<root>" in xml
 
     def test_batch_repair_with_truncation(self):
         """Test batch repair with truncated XML."""
-        xml_batch = [
-            '<root>item1',
-            '<root>item2</root>',
-            '<root>item3'
-        ]
+        xml_batch = ["<root>item1", "<root>item2</root>", "<root>item3"]
         results = batch_repair(xml_batch)
 
         assert len(results) == 3
         for xml, error in results:
             assert error is None
-            assert '</root>' in xml
+            assert "</root>" in xml
 
     def test_batch_repair_on_error_skip(self):
         """Test skip behavior on error."""
         xml_batch = [
-            '<root>valid</root>',
+            "<root>valid</root>",
             None,  # Will cause error
-            '<root>valid2</root>'
+            "<root>valid2</root>",
         ]
         # Use on_error='skip' to return original on error
-        results = batch_repair(xml_batch, on_error='skip')
+        results = batch_repair(xml_batch, on_error="skip")
 
         assert len(results) == 3
         # First and third should succeed
@@ -146,28 +138,28 @@ class TestBatchRepair:
     def test_batch_repair_on_error_return_empty(self):
         """Test return_empty behavior on error."""
         xml_batch = [
-            '<root>valid</root>',
+            "<root>valid</root>",
             None,  # Will cause error
         ]
-        results = batch_repair(xml_batch, on_error='return_empty')
+        results = batch_repair(xml_batch, on_error="return_empty")
 
         assert len(results) == 2
         assert results[0][1] is None
-        assert results[1][0] == ''  # Empty on error
+        assert results[1][0] == ""  # Empty on error
         assert results[1][1] is not None
 
     def test_batch_repair_on_error_raise(self):
         """Test raise behavior on error."""
         xml_batch = [
-            '<root>valid</root>',
+            "<root>valid</root>",
             None,  # Will cause error
         ]
         with pytest.raises(XenonException):
-            batch_repair(xml_batch, on_error='raise')
+            batch_repair(xml_batch, on_error="raise")
 
     def test_batch_repair_passes_kwargs(self):
         """Test that kwargs are passed to repair function."""
-        xml_batch = ['<root>item</root>']
+        xml_batch = ["<root>item</root>"]
         results = batch_repair(xml_batch, strict=False)
         assert len(results) == 1
 
@@ -182,30 +174,24 @@ class TestBatchRepairWithReports:
 
     def test_batch_with_reports_basic(self):
         """Test basic batch repair with reports."""
-        xml_batch = [
-            '<root>item1</root>',
-            '<root>item2'
-        ]
+        xml_batch = ["<root>item1</root>", "<root>item2"]
         results = batch_repair_with_reports(xml_batch)
 
         assert len(results) == 2
         for xml, report in results:
             assert isinstance(xml, str)
-            assert '<root>' in xml
+            assert "<root>" in xml
 
     def test_batch_with_reports_filter_func(self):
         """Test filtering results by report."""
         xml_batch = [
-            '<root>valid</root>',  # No repairs needed
-            '<root>invalid',  # Needs repair
-            '<root>also valid</root>'  # No repairs needed
+            "<root>valid</root>",  # No repairs needed
+            "<root>invalid",  # Needs repair
+            "<root>also valid</root>",  # No repairs needed
         ]
 
         # Only return items that needed repairs
-        results = batch_repair_with_reports(
-            xml_batch,
-            filter_func=lambda r: len(r) > 0
-        )
+        results = batch_repair_with_reports(xml_batch, filter_func=lambda r: len(r) > 0)
 
         # Should only include the one that needed repair
         assert len(results) >= 1
@@ -216,10 +202,7 @@ class TestBatchRepairWithReports:
 
     def test_batch_with_reports_no_filter(self):
         """Test without filter (returns all)."""
-        xml_batch = [
-            '<root>item1</root>',
-            '<root>item2'
-        ]
+        xml_batch = ["<root>item1</root>", "<root>item2"]
         results = batch_repair_with_reports(xml_batch, filter_func=None)
 
         assert len(results) == 2
@@ -230,24 +213,26 @@ class TestStreamRepair:
 
     def test_stream_repair_basic(self):
         """Test basic streaming repair."""
+
         def xml_generator():
-            yield '<root>item1</root>'
-            yield '<root>item2</root>'
-            yield '<root>item3</root>'
+            yield "<root>item1</root>"
+            yield "<root>item2</root>"
+            yield "<root>item3</root>"
 
         results = list(stream_repair(xml_generator()))
 
         assert len(results) == 3
         for xml, error in results:
             assert error is None
-            assert '<root>' in xml
+            assert "<root>" in xml
 
     def test_stream_repair_with_errors(self):
         """Test streaming with some errors."""
+
         def xml_generator():
-            yield '<root>valid</root>'
+            yield "<root>valid</root>"
             yield None  # Will cause error
-            yield '<root>valid2</root>'
+            yield "<root>valid2</root>"
 
         results = list(stream_repair(xml_generator()))
 
@@ -258,19 +243,21 @@ class TestStreamRepair:
 
     def test_stream_repair_with_truncation(self):
         """Test streaming repair fixes truncation."""
+
         def xml_generator():
-            yield '<root>item1'
-            yield '<root>item2'
-            yield '<root>item3'
+            yield "<root>item1"
+            yield "<root>item2"
+            yield "<root>item3"
 
         results = list(stream_repair(xml_generator()))
 
         for xml, error in results:
             assert error is None
-            assert '</root>' in xml
+            assert "</root>" in xml
 
     def test_stream_repair_empty(self):
         """Test streaming with empty iterator."""
+
         def xml_generator():
             return
             yield  # Never reached
@@ -280,8 +267,9 @@ class TestStreamRepair:
 
     def test_stream_repair_passes_kwargs(self):
         """Test that kwargs are passed through."""
+
         def xml_generator():
-            yield '<root>item</root>'
+            yield "<root>item</root>"
 
         results = list(stream_repair(xml_generator(), strict=False))
         assert len(results) == 1
@@ -292,84 +280,84 @@ class TestValidateXMLStructure:
 
     def test_validate_well_formed(self):
         """Test validation of well-formed XML."""
-        xml = '<root><item>Hello</item></root>'
+        xml = "<root><item>Hello</item></root>"
         is_valid, issues = validate_xml_structure(xml)
         assert is_valid
         assert len(issues) == 0
 
     def test_validate_empty_string(self):
         """Test validation of empty string."""
-        xml = ''
+        xml = ""
         is_valid, issues = validate_xml_structure(xml)
         assert not is_valid
-        assert any('Empty' in issue for issue in issues)
+        assert any("Empty" in issue for issue in issues)
 
     def test_validate_whitespace_only(self):
         """Test validation of whitespace-only string."""
-        xml = '   \n\t  '
+        xml = "   \n\t  "
         is_valid, issues = validate_xml_structure(xml)
         assert not is_valid
-        assert any('Empty' in issue for issue in issues)
+        assert any("Empty" in issue for issue in issues)
 
     def test_validate_no_tags(self):
         """Test validation with no XML tags."""
-        xml = 'Just plain text'
+        xml = "Just plain text"
         is_valid, issues = validate_xml_structure(xml)
         assert not is_valid
-        assert any('No XML tags' in issue for issue in issues)
+        assert any("No XML tags" in issue for issue in issues)
 
     def test_validate_more_opening_tags(self):
         """Test validation with more opening than closing tags."""
-        xml = '<root><item><nested></nested></item>'
+        xml = "<root><item><nested></nested></item>"
         is_valid, issues = validate_xml_structure(xml)
         assert not is_valid
-        assert any('More opening tags' in issue for issue in issues)
+        assert any("More opening tags" in issue for issue in issues)
 
     def test_validate_more_closing_tags(self):
         """Test validation with more closing than opening tags."""
-        xml = '<root><item></item></root></extra>'
+        xml = "<root><item></item></root></extra>"
         is_valid, issues = validate_xml_structure(xml)
         assert not is_valid
-        assert any('More closing tags' in issue for issue in issues)
+        assert any("More closing tags" in issue for issue in issues)
 
     def test_validate_unescaped_ampersand(self):
         """Test detection of unescaped ampersands."""
-        xml = '<root>Tom & Jerry</root>'
+        xml = "<root>Tom & Jerry</root>"
         is_valid, issues = validate_xml_structure(xml)
         assert not is_valid
-        assert any('unescaped ampersand' in issue for issue in issues)
+        assert any("unescaped ampersand" in issue for issue in issues)
 
     def test_validate_escaped_ampersand(self):
         """Test that escaped ampersands are OK."""
-        xml = '<root>Tom &amp; Jerry</root>'
+        xml = "<root>Tom &amp; Jerry</root>"
         is_valid, issues = validate_xml_structure(xml)
         # Should not flag escaped ampersands
-        assert not any('ampersand' in issue for issue in issues)
+        assert not any("ampersand" in issue for issue in issues)
 
     def test_validate_entity_references(self):
         """Test that entity references are not flagged."""
-        xml = '<root>&lt; &gt; &quot; &apos; &#65; &#x41;</root>'
+        xml = "<root>&lt; &gt; &quot; &apos; &#65; &#x41;</root>"
         is_valid, issues = validate_xml_structure(xml)
         # Should not flag valid entity references
-        assert not any('ampersand' in issue for issue in issues)
+        assert not any("ampersand" in issue for issue in issues)
 
     def test_validate_unquoted_attributes(self):
         """Test detection of unquoted attributes."""
-        xml = '<root attr=value>text</root>'
+        xml = "<root attr=value>text</root>"
         is_valid, issues = validate_xml_structure(xml)
         assert not is_valid
-        assert any('unquoted attribute' in issue for issue in issues)
+        assert any("unquoted attribute" in issue for issue in issues)
 
     def test_validate_quoted_attributes(self):
         """Test that quoted attributes are OK."""
-        xml = '<root attr="value" other=\'value2\'>text</root>'
+        xml = "<root attr=\"value\" other='value2'>text</root>"
         is_valid, issues = validate_xml_structure(xml)
         # Should not flag quoted attributes
-        assert not any('attribute' in issue for issue in issues)
+        assert not any("attribute" in issue for issue in issues)
 
     def test_validate_self_closing_tags(self):
         """Test that self-closing tags are handled."""
-        xml = '<root><item/><item/></root>'
+        xml = "<root><item/><item/></root>"
         is_valid, issues = validate_xml_structure(xml)
         # Self-closing tags should not cause tag mismatch
         # Note: The current implementation may not perfectly handle this
@@ -377,7 +365,7 @@ class TestValidateXMLStructure:
 
     def test_validate_multiple_issues(self):
         """Test XML with multiple issues."""
-        xml = '<root><item attr=unquoted>Tom & Jerry'
+        xml = "<root><item attr=unquoted>Tom & Jerry"
         is_valid, issues = validate_xml_structure(xml)
         assert not is_valid
         assert len(issues) >= 2  # Multiple issues detected
@@ -388,86 +376,86 @@ class TestExtractTextContent:
 
     def test_extract_simple(self):
         """Test extracting text from simple XML."""
-        xml = '<root>Hello World</root>'
+        xml = "<root>Hello World</root>"
         text = extract_text_content(xml)
-        assert text == 'Hello World'
+        assert text == "Hello World"
 
     def test_extract_nested(self):
         """Test extracting from nested XML."""
-        xml = '<root><item>Hello</item><item>World</item></root>'
+        xml = "<root><item>Hello</item><item>World</item></root>"
         text = extract_text_content(xml)
-        assert 'Hello' in text
-        assert 'World' in text
+        assert "Hello" in text
+        assert "World" in text
 
     def test_extract_removes_tags(self):
         """Test that all tags are removed."""
-        xml = '<root><a>text1</a><b>text2</b></root>'
+        xml = "<root><a>text1</a><b>text2</b></root>"
         text = extract_text_content(xml)
-        assert '<' not in text
-        assert '>' not in text
+        assert "<" not in text
+        assert ">" not in text
 
     def test_extract_preserves_cdata(self):
         """Test that CDATA content is extracted (tags still removed)."""
-        xml = '<root><![CDATA[Special content here]]></root>'
+        xml = "<root><![CDATA[Special content here]]></root>"
         text = extract_text_content(xml)
-        assert 'Special content here' in text
+        assert "Special content here" in text
 
         # Note: If CDATA contains tag-like text, those will also be removed
         # because extract_text_content removes ALL tag patterns
-        xml_with_tags = '<root><![CDATA[Special <content>]]></root>'
+        xml_with_tags = "<root><![CDATA[Special <content>]]></root>"
         text2 = extract_text_content(xml_with_tags)
-        assert 'Special' in text2
+        assert "Special" in text2
         # The <content> tag-like text is also removed by the final tag removal
 
     def test_extract_removes_comments(self):
         """Test that comments are removed."""
-        xml = '<root>text<!-- comment -->more</root>'
+        xml = "<root>text<!-- comment -->more</root>"
         text = extract_text_content(xml)
-        assert 'comment' not in text
-        assert 'text' in text
-        assert 'more' in text
+        assert "comment" not in text
+        assert "text" in text
+        assert "more" in text
 
     def test_extract_removes_processing_instructions(self):
         """Test that PIs are removed."""
         xml = '<?xml version="1.0"?><root>text</root><?pi data?>'
         text = extract_text_content(xml)
-        assert 'xml version' not in text
-        assert 'pi data' not in text
-        assert 'text' in text
+        assert "xml version" not in text
+        assert "pi data" not in text
+        assert "text" in text
 
     def test_extract_removes_doctype(self):
         """Test that DOCTYPE is removed."""
         xml = '<!DOCTYPE root SYSTEM "schema.dtd"><root>text</root>'
         text = extract_text_content(xml)
-        assert 'DOCTYPE' not in text
-        assert 'SYSTEM' not in text
-        assert 'text' in text
+        assert "DOCTYPE" not in text
+        assert "SYSTEM" not in text
+        assert "text" in text
 
     def test_extract_empty_elements(self):
         """Test extracting from empty elements."""
-        xml = '<root><item/><item></item></root>'
+        xml = "<root><item/><item></item></root>"
         text = extract_text_content(xml)
-        assert text == ''
+        assert text == ""
 
     def test_extract_mixed_content(self):
         """Test extracting from mixed content."""
-        xml = '<root>Start<item>Middle</item>End</root>'
+        xml = "<root>Start<item>Middle</item>End</root>"
         text = extract_text_content(xml)
-        assert 'Start' in text
-        assert 'Middle' in text
-        assert 'End' in text
+        assert "Start" in text
+        assert "Middle" in text
+        assert "End" in text
 
     def test_extract_with_attributes(self):
         """Test that attributes are removed."""
         xml = '<root attr="value">text</root>'
         text = extract_text_content(xml)
-        assert 'attr' not in text
-        assert 'value' not in text
-        assert 'text' in text
+        assert "attr" not in text
+        assert "value" not in text
+        assert "text" in text
 
     def test_extract_preserves_whitespace(self):
         """Test that whitespace in content is preserved."""
-        xml = '<root>  text  with  spaces  </root>'
+        xml = "<root>  text  with  spaces  </root>"
         text = extract_text_content(xml)
         # Whitespace should be preserved
-        assert '  text  with  spaces  ' in text
+        assert "  text  with  spaces  " in text
