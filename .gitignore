@@ -68,3 +68,8 @@ VERIFICATION.md
 
 # Research and analysis (not for production)
 research/
+
+# Internal documentation (not for public release)
+RECIPES.md
+REFACTORING.md
+docs/SUMMARY_v0.6.0.md
