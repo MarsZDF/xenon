@@ -852,8 +852,8 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## Version History
 
-- **v0.5.0** (2025-01-29): XML compliance features, configuration API, architectural refactoring
-- **v0.4.0** (2025-01-28): Security features, safe mode, error handling
+- **v0.5.0** (2025-11-29): XML compliance features, configuration API, architectural refactoring
+- **v0.4.0** (2025-11-28): Security features, safe mode, error handling
 - **v0.3.0**: Typo detection, similarity matching
 - **v0.2.0**: Namespace support, CDATA wrapping
 - **v0.1.0**: Initial release
