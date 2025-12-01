@@ -1,5 +1,6 @@
 """Repair reporting and diagnostics for Xenon XML repair engine."""
 
+import difflib
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Dict, List
@@ -156,3 +157,144 @@ class RepairReport:
     def __len__(self) -> int:
         """Number of repairs performed."""
         return len(self.actions)
+
+    def to_unified_diff(self, context_lines: int = 3) -> str:
+        """
+        Generate unified diff format showing changes.
+
+        Args:
+            context_lines: Number of context lines to show around changes
+
+        Returns:
+            Unified diff string in standard format
+
+        Example:
+            >>> result, report = repair_xml_with_report('<root><item')
+            >>> print(report.to_unified_diff())
+            --- Original
+            +++ Repaired
+            @@ -1 +1 @@
+            -<root><item
+            +<root><item></item></root>
+        """
+        original_lines = self.original_xml.splitlines(keepends=True)
+        repaired_lines = self.repaired_xml.splitlines(keepends=True)
+
+        diff = difflib.unified_diff(
+            original_lines,
+            repaired_lines,
+            fromfile="Original",
+            tofile="Repaired",
+            lineterm="",
+            n=context_lines,
+        )
+
+        return "\n".join(diff)
+
+    def to_context_diff(self, context_lines: int = 3) -> str:
+        """
+        Generate context diff format showing changes.
+
+        Args:
+            context_lines: Number of context lines to show around changes
+
+        Returns:
+            Context diff string
+
+        Example:
+            >>> result, report = repair_xml_with_report('<root><item')
+            >>> print(report.to_context_diff())
+        """
+        original_lines = self.original_xml.splitlines(keepends=True)
+        repaired_lines = self.repaired_xml.splitlines(keepends=True)
+
+        diff = difflib.context_diff(
+            original_lines,
+            repaired_lines,
+            fromfile="Original",
+            tofile="Repaired",
+            lineterm="",
+            n=context_lines,
+        )
+
+        return "\n".join(diff)
+
+    def to_html_diff(self, table_style: bool = True) -> str:
+        """
+        Generate HTML diff with color-coded changes.
+
+        Args:
+            table_style: If True, use table format; if False, use inline format
+
+        Returns:
+            HTML string with visual diff
+
+        Example:
+            >>> result, report = repair_xml_with_report('<root><item')
+            >>> html = report.to_html_diff()
+            >>> with open('diff.html', 'w') as f:
+            ...     f.write(html)
+        """
+        original_lines = self.original_xml.splitlines()
+        repaired_lines = self.repaired_xml.splitlines()
+
+        differ = difflib.HtmlDiff(tabsize=2, wrapcolumn=80)
+
+        if table_style:
+            html = differ.make_table(
+                original_lines,
+                repaired_lines,
+                fromdesc="Original XML",
+                todesc="Repaired XML",
+                context=True,
+                numlines=3,
+            )
+        else:
+            html = differ.make_file(
+                original_lines,
+                repaired_lines,
+                fromdesc="Original XML",
+                todesc="Repaired XML",
+                context=True,
+                numlines=3,
+            )
+
+        return html
+
+    def get_diff_summary(self) -> Dict[str, Any]:
+        """
+        Get summary statistics about the diff.
+
+        Returns:
+            Dictionary with diff statistics
+
+        Example:
+            >>> result, report = repair_xml_with_report(xml)
+            >>> stats = report.get_diff_summary()
+            >>> print(f"Lines added: {stats['lines_added']}")
+        """
+        original_lines = self.original_xml.splitlines()
+        repaired_lines = self.repaired_xml.splitlines()
+
+        matcher = difflib.SequenceMatcher(None, original_lines, repaired_lines)
+
+        lines_added = 0
+        lines_removed = 0
+        lines_changed = 0
+
+        for tag, i1, i2, j1, j2 in matcher.get_opcodes():
+            if tag == "insert":
+                lines_added += j2 - j1
+            elif tag == "delete":
+                lines_removed += i2 - i1
+            elif tag == "replace":
+                lines_changed += max(i2 - i1, j2 - j1)
+
+        return {
+            "lines_added": lines_added,
+            "lines_removed": lines_removed,
+            "lines_changed": lines_changed,
+            "similarity_ratio": matcher.ratio(),
+            "original_lines": len(original_lines),
+            "repaired_lines": len(repaired_lines),
+        }

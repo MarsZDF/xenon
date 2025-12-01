@@ -20,6 +20,7 @@ class RepairFlags(Flag):
     WRAP_MULTIPLE_ROOTS = auto()
     SANITIZE_INVALID_TAGS = auto()
     FIX_NAMESPACE_SYNTAX = auto()
+    AUTO_WRAP_CDATA = auto()
 
 
 @dataclass
@@ -58,6 +59,7 @@ class XMLRepairConfig:
         wrap_multiple_roots: bool = False,
         sanitize_invalid_tags: bool = False,
         fix_namespace_syntax: bool = False,
+        auto_wrap_cdata: bool = False,
     ) -> "XMLRepairConfig":
         """
         Create config from individual boolean parameters.
@@ -79,6 +81,8 @@ class XMLRepairConfig:
             repair |= RepairFlags.SANITIZE_INVALID_TAGS
         if fix_namespace_syntax:
             repair |= RepairFlags.FIX_NAMESPACE_SYNTAX
+        if auto_wrap_cdata:
+            repair |= RepairFlags.AUTO_WRAP_CDATA
 
         return cls(match_threshold=match_threshold, security=security, repair=repair)
 

@@ -44,6 +44,7 @@ class XMLRepairEngine:
         wrap_multiple_roots: bool = False,
         sanitize_invalid_tags: bool = False,
         fix_namespace_syntax: bool = False,
+        auto_wrap_cdata: bool = False,
     ):
         """
         Initialize XML repair engine.
@@ -67,6 +68,9 @@ class XMLRepairEngine:
                                   Default False for backward compatibility.
             fix_namespace_syntax: Fix invalid namespace syntax (e.g., <bad::ns> → <bad_ns>).
                                  Default False for backward compatibility.
+            auto_wrap_cdata: Automatically wrap code-like content in CDATA sections.
+                            Detects tags like <code>, <script>, <pre> with special characters.
+                            Default False for backward compatibility.
 
         Examples:
             >>> # Using config object (recommended)
@@ -90,6 +94,7 @@ class XMLRepairEngine:
                 wrap_multiple_roots=wrap_multiple_roots,
                 sanitize_invalid_tags=sanitize_invalid_tags,
                 fix_namespace_syntax=fix_namespace_syntax,
+                auto_wrap_cdata=auto_wrap_cdata,
             )
 
         self.config = config
@@ -109,6 +114,79 @@ class XMLRepairEngine:
         self.wrap_multiple_roots = config.has_repair_feature(RepairFlags.WRAP_MULTIPLE_ROOTS)
         self.sanitize_invalid_tags = config.has_repair_feature(RepairFlags.SANITIZE_INVALID_TAGS)
         self.fix_namespace_syntax = config.has_repair_feature(RepairFlags.FIX_NAMESPACE_SYNTAX)
+        self.auto_wrap_cdata = config.has_repair_feature(RepairFlags.AUTO_WRAP_CDATA)
+
+        # Tags that commonly contain code or special characters
+        self.CDATA_CANDIDATE_TAGS = {
+            "code",
+            "script",
+            "pre",
+            "source",
+            "sql",
+            "query",
+            "formula",
+            "expression",
+            "xpath",
+            "regex",
+        }
+
+    def _is_cdata_candidate_tag(self, tag_name: str) -> bool:
+        """
+        Check if tag name is a candidate for CDATA wrapping.
+
+        Args:
+            tag_name: The tag name to check
+
+        Returns:
+            True if tag commonly contains code or special characters
+        """
+        return tag_name.lower() in self.CDATA_CANDIDATE_TAGS
+
+    def _content_needs_cdata(self, content: str) -> bool:
+        """
+        Check if content contains characters that benefit from CDATA wrapping.
+
+        CDATA is useful when content has special XML characters that
+        would otherwise need escaping. For code-like content, even a single
+        special character is worth wrapping to preserve readability.
+
+        Args:
+            content: The text content to check
+
+        Returns:
+            True if content has special characters
+        """
+        if not content or content.isspace():
+            return False
+
+        # For code content, be liberal - even 1 special char benefits from CDATA
+        # This is different from regular text where escaping is fine
+        special_chars = {"<", ">", "&"}
+
+        for char in special_chars:
+            if char in content:
+                return True
+
+        return False
+
+    def _wrap_in_cdata(self, content: str) -> str:
+        """
+        Wrap content in CDATA section.
+
+        Handles edge case where content already contains ]]> by splitting it.
+
+        Args:
+            content: The content to wrap
+
+        Returns:
+            Content wrapped in CDATA section
+        """
+        # Handle ]]> in content by splitting the CDATA
+        # ]]> ends CDATA, so we need to escape it as ]]]]><![CDATA[>
+        if "]]>" in content:
+            content = content.replace("]]>", "]]]]><![CDATA[>")
+
+        return f"<![CDATA[{content}]]>"
 
     def is_dangerous_pi(self, pi_content: str) -> bool:
         """
@@ -773,7 +851,26 @@ class XMLRepairEngine:
         tag_stack = []  # Stack stores tuples of (original_case, lowercase) for case-insensitive matching
         dangerous_tag_stack = []  # Track dangerous tags to skip their content
         first_open_tag = True  # Track first tag for namespace injection
+        text_buffer = []  # Buffer for collecting text content in CDATA candidate tags
+        in_cdata_candidate = False  # Are we currently inside a CDATA candidate tag?
         i = 0
+
+        def flush_text_buffer():
+            """Flush buffered text content, wrapping in CDATA if needed."""
+            nonlocal text_buffer, in_cdata_candidate, result
+            if not text_buffer:
+                return
+
+            # Combine all buffered text
+            combined_text = "".join(text_buffer)
+            text_buffer = []
+
+            # Check if we should wrap in CDATA
+            if in_cdata_candidate and self.auto_wrap_cdata and self._content_needs_cdata(combined_text):
+                result.append(self._wrap_in_cdata(combined_text))
+            else:
+                # Escape entities normally
+                result.append(self.escape_entities(combined_text))
 
         while i < len(tokens):
             token = tokens[i]
@@ -786,6 +883,9 @@ class XMLRepairEngine:
                     continue
                 result.append(token.content)
             elif token.type == "open_tag":
+                # Flush any buffered text before opening a new tag
+                flush_text_buffer()
+
                 # Extract tag name for stack (store both original and lowercase)
                 tag_name = None
                 if i + 1 < len(tokens) and tokens[i + 1].type == "tag_name":
@@ -811,9 +911,15 @@ class XMLRepairEngine:
 
                 if tag_name:
                     tag_stack.append((tag_name, tag_name.lower()))
+                    # Check if this is a CDATA candidate tag
+                    in_cdata_candidate = self._is_cdata_candidate_tag(tag_name)
                     i += 1  # Skip the tag_name token
                     # Don't fall through to i += 1 at end of loop - we already incremented
             elif token.type == "close_tag":
+                # Flush any buffered text before closing tag
+                flush_text_buffer()
+                in_cdata_candidate = False  # Reset flag when leaving the tag
+
                 # Mismatched tag detection with similarity matching
                 closing_tag_lower = token.content.lower()
 
@@ -853,8 +959,10 @@ class XMLRepairEngine:
                     # This might be an extra closing tag or severely mismatched
                     result.append(f"</{token.content}>")
             elif token.type == "self_closing_tag":
+                flush_text_buffer()
                 result.append(f"<{token.content}/>")
             elif token.type == "incomplete_tag":
+                flush_text_buffer()
                 # Handle truncated tags
                 # Inject namespaces into first tag if needed
                 if first_open_tag and namespaces:
@@ -870,14 +978,19 @@ class XMLRepairEngine:
                     tag_stack.append((tag_name, tag_name.lower()))
                     i += 1  # Skip the tag_name token
             elif token.type == "text":
-                # Check if text needs CDATA wrapping (code, special chars)
-                if self.detect_cdata_needed(token.content):
-                    result.append(self.wrap_in_cdata(token.content))
+                # Buffer text content if we're in a CDATA candidate tag
+                # Otherwise, escape and output immediately
+                if in_cdata_candidate and self.auto_wrap_cdata:
+                    text_buffer.append(token.content)
                 else:
                     escaped_text = self.escape_entities(token.content)
                     result.append(escaped_text)
             elif token.type == "whitespace":
-                result.append(token.content)
+                # Buffer whitespace if we're collecting CDATA content
+                if in_cdata_candidate and self.auto_wrap_cdata:
+                    text_buffer.append(token.content)
+                else:
+                    result.append(token.content)
             elif token.type == "doctype":
                 # DOCTYPE declarations are preserved unless security flag is set
                 # (They were already stripped in extract_xml_content if flag was set)
@@ -890,6 +1003,9 @@ class XMLRepairEngine:
                 result.append(token.content)
 
             i += 1
+
+        # Flush any remaining buffered text
+        flush_text_buffer()
 
         # Step 4: Close any remaining open tags
         while tag_stack:

@@ -7,72 +7,14 @@ from xenon.utils import (
     batch_repair,
     batch_repair_with_reports,
     decode_xml,
-    detect_encoding,
     extract_text_content,
     stream_repair,
     validate_xml_structure,
 )
 
 
-class TestEncodingDetection:
-    """Test encoding detection and decoding."""
-
-    def test_detect_utf8_bom(self):
-        """Test UTF-8 BOM detection."""
-        xml_bytes = b'\xef\xbb\xbf<?xml version="1.0"?><root/>'
-        encoding = detect_encoding(xml_bytes)
-        assert encoding == "utf-8-sig"
-
-    def test_detect_utf16_le_bom(self):
-        """Test UTF-16 LE BOM detection."""
-        xml_bytes = b"\xff\xfe<\x00?\x00x\x00m\x00l\x00"
-        encoding = detect_encoding(xml_bytes)
-        assert encoding == "utf-16-le"
-
-    def test_detect_utf16_be_bom(self):
-        """Test UTF-16 BE BOM detection."""
-        xml_bytes = b"\xfe\xff\x00<\x00?\x00x\x00m\x00l"
-        encoding = detect_encoding(xml_bytes)
-        assert encoding == "utf-16-be"
-
-    def test_detect_utf32_le_bom(self):
-        """Test UTF-32 LE BOM detection."""
-        xml_bytes = b"\xff\xfe\x00\x00<\x00\x00\x00"
-        encoding = detect_encoding(xml_bytes)
-        assert encoding == "utf-32-le"
-
-    def test_detect_utf32_be_bom(self):
-        """Test UTF-32 BE BOM detection."""
-        xml_bytes = b"\x00\x00\xfe\xff\x00\x00\x00<"
-        encoding = detect_encoding(xml_bytes)
-        assert encoding == "utf-32-be"
-
-    def test_detect_from_declaration(self):
-        """Test encoding detection from XML declaration."""
-        xml_bytes = b'<?xml version="1.0" encoding="iso-8859-1"?><root/>'
-        encoding = detect_encoding(xml_bytes)
-        assert encoding == "iso-8859-1"
-
-    def test_detect_from_declaration_case_insensitive(self):
-        """Test case-insensitive encoding detection."""
-        xml_bytes = b'<?xml version="1.0" ENCODING="UTF-8"?><root/>'
-        encoding = detect_encoding(xml_bytes)
-        assert encoding == "UTF-8"
-
-    def test_detect_default_utf8(self):
-        """Test default UTF-8 when no encoding specified."""
-        xml_bytes = b'<?xml version="1.0"?><root/>'
-        encoding = detect_encoding(xml_bytes)
-        assert encoding == "utf-8"
-
-    def test_detect_fallback_to_latin1(self):
-        """Test fallback to latin-1 on error."""
-        # Invalid UTF-8 bytes - but errors='ignore' means no exception
-        # So it will default to utf-8 instead of falling back
-        xml_bytes = b"\xff\xff\xff<root/>"
-        encoding = detect_encoding(xml_bytes)
-        # With errors='ignore', no exception is raised, so defaults to utf-8
-        assert encoding == "utf-8"
+class TestDecodeXml:
+    """Tests for decode_xml() function."""
 
     def test_decode_xml_auto(self):
         """Test automatic decoding."""
@@ -93,6 +35,12 @@ class TestEncodingDetection:
         result = decode_xml(xml_bytes, encoding="ascii")
         # Should fallback to UTF-8 with replacement
         assert isinstance(result, str)
+
+    def test_decode_xml_with_bom(self):
+        """Test decoding with BOM auto-detection."""
+        xml_bytes = b'\xef\xbb\xbf<root>test</root>'
+        result = decode_xml(xml_bytes)
+        assert '<root>test</root>' in result
 
 
 class TestBatchRepair:

@@ -3,58 +3,8 @@
 import re
 from typing import Callable, Iterator, List, Optional, Tuple
 
+from .encoding import detect_encoding
 from .reporting import RepairReport
-
-
-def detect_encoding(xml_bytes: bytes) -> str:
-    """
-    Detect XML encoding from bytes.
-
-    Checks the XML declaration and BOM (Byte Order Mark) to determine encoding.
-
-    Args:
-        xml_bytes: Raw XML bytes
-
-    Returns:
-        Detected encoding name (e.g., 'utf-8', 'utf-16', 'iso-8859-1')
-
-    Example:
-        >>> xml_bytes = b'<?xml version="1.0" encoding="UTF-8"?><root/>'
-        >>> detect_encoding(xml_bytes)
-        'UTF-8'
-
-        >>> xml_bytes = b'\\xff\\xfe<\\x00?\\x00x\\x00m\\x00l\\x00'  # UTF-16 LE with BOM
-        >>> detect_encoding(xml_bytes)
-        'utf-16-le'
-    """
-    # Check BOM (Byte Order Mark)
-    if xml_bytes.startswith(b"\xff\xfe\x00\x00"):
-        return "utf-32-le"
-    elif xml_bytes.startswith(b"\x00\x00\xfe\xff"):
-        return "utf-32-be"
-    elif xml_bytes.startswith(b"\xff\xfe"):
-        return "utf-16-le"
-    elif xml_bytes.startswith(b"\xfe\xff"):
-        return "utf-16-be"
-    elif xml_bytes.startswith(b"\xef\xbb\xbf"):
-        return "utf-8-sig"
-
-    # Try to decode as UTF-8 and look for encoding declaration
-    try:
-        # Try UTF-8 first (most common)
-        text = xml_bytes.decode("utf-8", errors="ignore")
-
-        # Look for encoding in XML declaration
-        # <?xml version="1.0" encoding="UTF-8"?>
-        match = re.search(r'<\?xml[^>]+encoding=["\']([^"\']+)["\']', text, re.IGNORECASE)
-        if match:
-            return match.group(1)
-
-        return "utf-8"  # Default to UTF-8
-
-    except Exception:
-        # Fallback to latin-1 (always succeeds)
-        return "iso-8859-1"
 
 
 def decode_xml(xml_bytes: bytes, encoding: Optional[str] = None) -> str:
@@ -74,7 +24,8 @@ def decode_xml(xml_bytes: bytes, encoding: Optional[str] = None) -> str:
         '<?xml version="1.0"?><root>data</root>'
     """
     if encoding is None:
-        encoding = detect_encoding(xml_bytes)
+        detected_encoding, confidence = detect_encoding(xml_bytes)
+        encoding = detected_encoding
 
     try:
         return xml_bytes.decode(encoding)

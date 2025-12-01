@@ -72,9 +72,11 @@ class TestXenonCore(unittest.TestCase):
 
     def test_cdata_wrapping(self):
         """Test automatic CDATA wrapping for code content."""
+        from xenon import repair_xml_safe
+
         malformed = "<code>function test() { return x && y; }</code>"
-        result = repair_xml(malformed)
-        # Should wrap in CDATA because contains code keywords
+        result = repair_xml_safe(malformed, auto_wrap_cdata=True)
+        # Should wrap in CDATA because contains & special characters
         self.assertIn("<![CDATA[", result)
         self.assertIn("function test()", result)
         self.assertIn("]]>", result)

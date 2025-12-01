@@ -74,18 +74,18 @@ class TestEntityEscaping:
         assert "&amp;another" in result or "another" in result
 
     def test_cdata_still_works_for_code(self):
-        """Test that CDATA wrapping still works for code."""
-        xml = "<root>if (a && b) { }</root>"
-        result = repair_xml_safe(xml)
+        """Test that CDATA wrapping works for code tags with auto_wrap_cdata enabled."""
+        xml = "<code>if (a && b) { }</code>"
+        result = repair_xml_safe(xml, auto_wrap_cdata=True)
         # Should use CDATA for code with &&
         assert "<![CDATA[" in result
         assert "if (a && b)" in result
 
     def test_cdata_for_multiple_unescaped_chars(self):
-        """Test CDATA wrapping for multiple unescaped special chars."""
-        xml = "<root>5 < 10 & 10 > 5</root>"
-        result = repair_xml_safe(xml)
-        # Should use CDATA for multiple unescaped chars
+        """Test CDATA wrapping for code tags with special chars."""
+        xml = "<code>5 < 10 & 10 > 5</code>"
+        result = repair_xml_safe(xml, auto_wrap_cdata=True)
+        # Should use CDATA for multiple unescaped chars in code tag
         assert "<![CDATA[" in result
 
     def test_single_unescaped_char_escaped_not_cdata(self):

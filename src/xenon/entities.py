@@ -1,0 +1,197 @@
+"""HTML entity handling for Xenon XML repair."""
+
+import html
+import re
+from typing import Dict
+
+# Common HTML entities that LLMs might use
+HTML_ENTITIES = {
+    # Typography
+    "nbsp": "\u00A0",  # non-breaking space
+    "copy": "\u00A9",  # ©
+    "reg": "\u00AE",  # ®
+    "trade": "\u2122",  # ™
+    "euro": "\u20AC",  # €
+    "pound": "\u00A3",  # £
+    "yen": "\u00A5",  # ¥
+    "cent": "\u00A2",  # ¢
+    # Dashes and quotes
+    "ndash": "\u2013",  # –
+    "mdash": "\u2014",  # —
+    "lsquo": "\u2018",  # '
+    "rsquo": "\u2019",  # '
+    "ldquo": "\u201C",  # "
+    "rdquo": "\u201D",  # "
+    "sbquo": "\u201A",  # ‚
+    "bdquo": "\u201E",  # „
+    # Math and symbols
+    "times": "\u00D7",  # ×
+    "divide": "\u00F7",  # ÷
+    "plusmn": "\u00B1",  # ±
+    "deg": "\u00B0",  # °
+    "micro": "\u00B5",  # µ
+    "para": "\u00B6",  # ¶
+    "middot": "\u00B7",  # ·
+    "frac14": "\u00BC",  # ¼
+    "frac12": "\u00BD",  # ½
+    "frac34": "\u00BE",  # ¾
+    # Arrows
+    "larr": "\u2190",  # ←
+    "rarr": "\u2192",  # →
+    "uarr": "\u2191",  # ↑
+    "darr": "\u2193",  # ↓
+    # Greek letters (common ones)
+    "alpha": "\u03B1",
+    "beta": "\u03B2",
+    "gamma": "\u03B3",
+    "delta": "\u03B4",
+    "pi": "\u03C0",
+    "sigma": "\u03C3",
+    # Special characters
+    "sect": "\u00A7",  # §
+    "hellip": "\u2026",  # …
+    "bull": "\u2022",  # •
+}
+
+
+def convert_html_entities_to_numeric(text: str, preserve_xml_entities: bool = True) -> str:
+    """
+    Convert HTML entities to numeric character references for XML compatibility.
+
+    Args:
+        text: Text containing HTML entities
+        preserve_xml_entities: If True, don't convert &lt; &gt; &amp; &quot; &apos;
+
+    Returns:
+        Text with HTML entities converted to numeric references
+
+    Examples:
+        >>> convert_html_entities_to_numeric("Price: &euro;50 &mdash; &copy;2024")
+        'Price: &#8364;50 &#8212; &#169;2024'
+
+        >>> convert_html_entities_to_numeric("Value &lt; 10 &amp; &nbsp;OK")
+        'Value &lt; 10 &amp; &#160;OK'
+    """
+    xml_entities = {"lt", "gt", "amp", "quot", "apos"}
+
+    def replace_entity(match):
+        entity_name = match.group(1)
+
+        # Preserve XML entities if requested
+        if preserve_xml_entities and entity_name in xml_entities:
+            return match.group(0)
+
+        # Convert HTML entity to character
+        if entity_name in HTML_ENTITIES:
+            char = HTML_ENTITIES[entity_name]
+            return f"&#{ord(char)};"
+
+        # If unknown, leave as-is
+        return match.group(0)
+
+    # Replace named entities
+    result = re.sub(r"&([a-zA-Z]+);", replace_entity, text)
+
+    return result
+
+
+def convert_html_entities_to_unicode(text: str, preserve_xml_entities: bool = True) -> str:
+    """
+    Convert HTML entities to Unicode characters.
+
+    Args:
+        text: Text containing HTML entities
+        preserve_xml_entities: If True, don't convert &lt; &gt; &amp; &quot; &apos;
+
+    Returns:
+        Text with HTML entities converted to Unicode
+
+    Examples:
+        >>> convert_html_entities_to_unicode("&euro;50 &mdash; &copy;2024")
+        '€50 — ©2024'
+    """
+    xml_entities = {"lt", "gt", "amp", "quot", "apos"}
+
+    def replace_entity(match):
+        entity_name = match.group(1)
+
+        # Preserve XML entities if requested
+        if preserve_xml_entities and entity_name in xml_entities:
+            return match.group(0)
+
+        # Convert HTML entity to character
+        if entity_name in HTML_ENTITIES:
+            return HTML_ENTITIES[entity_name]
+
+        # If unknown, leave as-is
+        return match.group(0)
+
+    # Replace named entities
+    result = re.sub(r"&([a-zA-Z]+);", replace_entity, text)
+
+    return result
+
+
+def normalize_entities(text: str, mode: str = "numeric") -> str:
+    """
+    Normalize all entities in text to a consistent format.
+
+    Args:
+        text: Text with mixed entity formats
+        mode: Target format - "numeric" or "unicode"
+
+    Returns:
+        Text with normalized entities
+
+    Examples:
+        >>> normalize_entities("&lt;test&gt; &copy;2024", mode="numeric")
+        '&lt;test&gt; &#169;2024'
+
+        >>> normalize_entities("&#8364;50 &euro;50", mode="unicode")
+        '€50 €50'
+    """
+    if mode == "numeric":
+        # First convert HTML entities to numeric
+        result = convert_html_entities_to_numeric(text, preserve_xml_entities=True)
+        return result
+    elif mode == "unicode":
+        # Convert everything to Unicode
+        result = convert_html_entities_to_unicode(text, preserve_xml_entities=True)
+        # Also decode numeric entities
+        result = html.unescape(result)
+        # But preserve XML entities (they might be intentional)
+        result = result.replace("<", "&lt;")
+        result = result.replace(">", "&gt;")
+        result = result.replace("&", "&amp;")
+        return result
+    else:
+        raise ValueError(f"Unknown mode: {mode}. Use 'numeric' or 'unicode'")
+
+
+def detect_html_entities(text: str) -> Dict[str, int]:
+    """
+    Detect HTML entities in text and count occurrences.
+
+    Args:
+        text: Text to analyze
+
+    Returns:
+        Dictionary mapping entity names to occurrence counts
+
+    Example:
+        >>> detect_html_entities("&copy;2024 &mdash; &copy;XYZ")
+        {'copy': 2, 'mdash': 1}
+    """
+    entities = {}
+    xml_entities = {"lt", "gt", "amp", "quot", "apos"}
+
+    for match in re.finditer(r"&([a-zA-Z]+);", text):
+        entity_name = match.group(1)
+        # Skip XML entities
+        if entity_name in xml_entities:
+            continue
+        # Only count known HTML entities
+        if entity_name in HTML_ENTITIES:
+            entities[entity_name] = entities.get(entity_name, 0) + 1
+
+    return entities

@@ -11,13 +11,26 @@ A robust, zero-dependency Python library for cleaning up malformed XML generated
 - **Robust Error Handling**: Production-ready with comprehensive validation and error recovery
 - **Multiple Modes**: Choose between strict, default, or lenient error handling
 - **Simple Interface**: Easy-to-use functions for common use cases
-- **🆕 v0.5.0**: Advanced XML compliance features and cleaner configuration API
+- **🆕 v0.6.0**: Diff reporting, formatting, HTML entities, and encoding detection
+- **v0.5.0**: Advanced XML compliance features and cleaner configuration API
 
 ## Installation
 
+Install directly from GitHub:
+
 ```bash
-pip install xenon
+pip install git+https://github.com/MarsZDF/xenon.git
 ```
+
+Or clone and install locally:
+
+```bash
+git clone https://github.com/MarsZDF/xenon.git
+cd xenon
+pip install -e .
+```
+
+> **Note**: This package is not yet published to PyPI. Once published, you'll be able to install with `pip install xenon`.
 
 ## ⚠️ Security Warning & Features
 
@@ -52,7 +65,246 @@ result = parse_xml(malformed)
 print(result)    # {'root': {'user': {'@attributes': {'name': 'john'}}}}
 ```
 
-## What's New in v0.5.0 🆕
+## What's New in v0.6.0 🆕
+
+### Diff/Patch Reporting
+Understand exactly what changed during repair:
+
+```python
+from xenon import repair_xml_with_diff
+
+result, report = repair_xml_with_diff('<root><item>test')
+
+# Get unified diff
+print(report.to_unified_diff())
+# --- Original
+# +++ Repaired
+# @@ -1 +1 @@
+# -<root><item>test
+# +<root><item>test</item></root>
+
+# Get HTML diff for visualization
+html = report.to_html_diff()
+with open('diff.html', 'w') as f:
+    f.write(html)
+
+# Get statistics
+stats = report.get_diff_summary()
+print(f"Lines added: {stats['lines_added']}")
+print(f"Similarity: {stats['similarity_ratio']:.1%}")
+```
+
+### Analyzing Repairs
+Understand what repairs were performed and why:
+
+```python
+from xenon import repair_xml_with_report, RepairType
+
+result, report = repair_xml_with_report('<root><?php code?><item>test & data')
+
+# Get human-readable summary
+print(report.summary())
+# Performed 3 repair(s):
+#   - [dangerous_pi_stripped] Removed dangerous PI
+#   - [unescaped_entity] Escaped & character
+#   - [truncation] Added closing tags
+
+# Check if repairs were needed
+if report:  # Truthy if any repairs performed
+    print(f"Made {len(report)} repairs")
+
+# Analyze by repair type
+for action in report.actions:
+    print(f"Type: {action.repair_type.value}")
+    print(f"Description: {action.description}")
+    if action.before:
+        print(f"Changed: '{action.before}' → '{action.after}'")
+
+# Group repairs by type
+grouped = report.by_type()
+for repair_type, actions in grouped.items():
+    print(f"{repair_type.value}: {len(actions)} occurrences")
+
+# Get detailed statistics
+stats = report.statistics()
+print(f"Total repairs: {stats['total_repairs']}")
+print(f"Truncations fixed: {stats.get('truncation_count', 0)}")
+
+# Check for security issues
+if report.has_security_issues():
+    print("⚠️  Security repairs were performed - review input source")
+
+# Export to JSON for logging/analysis
+import json
+json_data = json.dumps(report.to_dict(), indent=2)
+```
+
+**15 Repair Types:**
+- `TRUNCATION` - Fixed incomplete XML
+- `CONVERSATIONAL_FLUFF` - Removed non-XML text
+- `UNESCAPED_ENTITY` - Escaped &, <, >
+- `MALFORMED_ATTRIBUTE` - Fixed attribute syntax
+- `CDATA_WRAPPED` - Wrapped code in CDATA
+- `TAG_TYPO` / `TAG_CASE_MISMATCH` - Fixed tag issues
+- `DANGEROUS_PI_STRIPPED` - Removed <?php ?>, etc.
+- `DANGEROUS_TAG_STRIPPED` - Removed <script>, etc.
+- `EXTERNAL_ENTITY_STRIPPED` - XXE prevention
+- And more... (see [API Reference](docs/API_REFERENCE.md))
+
+### Smart Formatting
+Format XML output for readability:
+
+```python
+from xenon import format_xml
+
+xml = '<root><item>test</item><another>data</another></root>'
+
+# Pretty-print with indentation
+pretty = format_xml(xml, style='pretty', indent='  ')
+print(pretty)
+# <root>
+#   <item>test</item>
+#   <another>data</another>
+# </root>
+
+# Minify for compact output
+compact = format_xml(xml, style='minify')
+# <root><item>test</item><another>data</another></root>
+
+# One tag per line (compact)
+result = format_xml(xml, style='compact')
+```
+
+### HTML Entity Support
+Handle HTML entities from web-trained LLMs:
+
+```python
+from xenon import convert_html_entities, normalize_entities
+
+# Convert HTML entities to numeric XML entities
+text = "Price: &euro;50 &mdash; &copy;2024"
+result = convert_html_entities(text)
+# Result: "Price: &#8364;50 &#8212; &#169;2024"
+
+# Normalize all entities
+text = "&lt;test&gt; &copy;2024 &#169;2024"
+result = normalize_entities(text, mode='numeric')
+# Converts HTML entities, preserves XML entities
+```
+
+Supports 40+ common HTML entities: `&nbsp;`, `&copy;`, `&euro;`, `&mdash;`, `&ldquo;`, `&rarr;`, Greek letters, math symbols, and more.
+
+### Encoding Detection
+Auto-detect and normalize encodings:
+
+```python
+from xenon import detect_encoding, normalize_encoding
+
+# Detect encoding from BOM or XML declaration
+data = b'\xef\xbb\xbf<?xml version="1.0"?><root/>'
+encoding, confidence = detect_encoding(data)
+# ('utf-8-sig', 1.0)
+
+# Normalize to UTF-8 with Unicode normalization
+result = normalize_encoding(data, normalize_unicode=True)
+# Returns: '<root/>' as normalized string
+```
+
+### 🚀 All v0.6.0 Features in One Call
+Use all features together with the integrated `repair_xml_safe()`:
+
+```python
+from xenon import repair_xml_safe
+
+# Bytes input + all v0.6.0 features in ONE call!
+result = repair_xml_safe(
+    b'<root><?php code?><p>&euro;50</p><item>data',  # Accepts bytes
+    # v0.6.0 Features:
+    format_output='pretty',         # Pretty-print output
+    html_entities='numeric',        # Convert HTML entities
+    normalize_unicode=True,         # Apply NFC normalization
+    # Plus v0.5.0 security features:
+    strip_dangerous_pis=True,       # Remove <?php ?>
+    auto_wrap_cdata=True,           # Wrap code in CDATA
+    strict=True                     # Validate output
+)
+
+print(result)
+# <root>
+#   <p>€50</p>
+#   <item>data</item>
+# </root>
+```
+
+### Utility Functions
+Powerful utilities exposed in v0.6.0:
+
+```python
+from xenon import (
+    batch_repair,              # Batch processing
+    stream_repair,             # Streaming for large datasets
+    validate_xml_structure,    # Lightweight validation
+    extract_text_content,      # Extract text from XML
+    decode_xml                 # Auto-detect encoding
+)
+
+# Batch repair with error handling
+xml_batch = ['<root>test1', '<root>test2</root>', '<root>test3']
+results = batch_repair(xml_batch, on_error='skip')
+for xml, error in results:
+    if error:
+        print(f"Failed: {error}")
+    else:
+        print(f"Success: {xml}")
+
+# Stream repair for huge datasets
+def xml_generator():
+    for i in range(10000):
+        yield f'<item id="{i}">data{i}'
+
+for repaired, error in stream_repair(xml_generator()):
+    if not error:
+        process(repaired)
+
+# Validate structure before expensive operations
+is_valid, issues = validate_xml_structure(xml)
+if not is_valid:
+    print(f"Issues found: {issues}")
+
+# Extract plain text from XML
+text = extract_text_content('<root><p>Hello</p><p>World</p></root>')
+# 'HelloWorld'
+```
+
+### Enhanced Error Messages
+Get precise error context with line/column information:
+
+```python
+from xenon import repair_xml_safe, get_line_column, get_context_snippet
+
+xml = """<root>
+    <item id=invalid>
+        <name>Test</name>
+    </item>
+</root>"""
+
+try:
+    result = repair_xml_safe(xml, strict=True)
+except Exception as e:
+    # Exceptions now include line/column context
+    print(f"Error at line {e.line}, column {e.column}")
+    print(f"Context: {e.context}")
+    # Error at line 2, column 15
+    # Context: '...id=invalid>...'
+
+# Or use helper functions
+position = xml.find("invalid")
+line, col = get_line_column(xml, position)
+context = get_context_snippet(xml, position, max_length=40)
+print(f"Found at line {line}, column {col}: {context}")
+```
+
+## What's New in v0.5.0
 
 ### New XML Compliance Features
 
@@ -82,13 +334,19 @@ xml = '<root1>data1</root1><root2>data2</root2>'
 result = repair_xml_safe(xml, wrap_multiple_roots=True)
 # Result: <document><root1>data1</root1><root2>data2</root2></document>
 
-# 4. Improved entity escaping (no double-escaping!)
+# 4. Auto-wrap code content in CDATA sections
+xml = '<code>if (x < 5 && y > 10) { return true; }</code>'
+result = repair_xml_safe(xml, auto_wrap_cdata=True)
+# Result: <code><![CDATA[if (x < 5 && y > 10) { return true; }]]></code>
+# Works with: code, script, pre, sql, xpath, regex, query, formula, expression
+
+# 5. Improved entity escaping (no double-escaping!)
 xml = '<root>&lt;already&gt; & new</root>'
 result = repair_xml_safe(xml)
 # Result: <root>&lt;already&gt; &amp; new</root>
 # (preserves existing entities, escapes new ones)
 
-# 5. Attribute value escaping
+# 6. Attribute value escaping
 xml = '<root attr="value & more">text</root>'
 result = repair_xml_safe(xml)
 # Result: <root attr="value &amp; more">text</root>
@@ -112,7 +370,7 @@ engine = XMLRepairEngine(
 # New way (recommended for clarity)
 config = XMLRepairConfig(
     security=SecurityFlags.STRIP_DANGEROUS_PIS | SecurityFlags.STRIP_EXTERNAL_ENTITIES,
-    repair=RepairFlags.SANITIZE_INVALID_TAGS | RepairFlags.FIX_NAMESPACE_SYNTAX
+    repair=RepairFlags.SANITIZE_INVALID_TAGS | RepairFlags.FIX_NAMESPACE_SYNTAX | RepairFlags.AUTO_WRAP_CDATA
 )
 engine = XMLRepairEngine(config)
 

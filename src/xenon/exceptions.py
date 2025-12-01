@@ -5,6 +5,8 @@ This module provides a hierarchy of exceptions that make it easy to handle
 different types of errors that can occur during XML repair operations.
 """
 
+from typing import Optional
+
 
 class XenonException(Exception):
     """
@@ -12,9 +14,45 @@ class XenonException(Exception):
 
     All custom exceptions in Xenon inherit from this class, making it easy
     to catch all Xenon-specific errors with a single except clause.
+
+    Attributes:
+        line: Optional line number where the error occurred
+        column: Optional column number where the error occurred
+        context: Optional surrounding text for context
     """
 
-    pass
+    def __init__(
+        self,
+        message: str,
+        line: Optional[int] = None,
+        column: Optional[int] = None,
+        context: Optional[str] = None,
+    ):
+        """
+        Initialize exception with enhanced error context.
+
+        Args:
+            message: Error message
+            line: Line number where error occurred (1-indexed)
+            column: Column number where error occurred (1-indexed)
+            context: Surrounding text for context
+        """
+        self.line = line
+        self.column = column
+        self.context = context
+
+        # Build enhanced message
+        enhanced_message = message
+        if line is not None:
+            enhanced_message = f"{message} (line {line}"
+            if column is not None:
+                enhanced_message += f", column {column}"
+            enhanced_message += ")"
+
+        if context:
+            enhanced_message += f"\n  Context: {context!r}"
+
+        super().__init__(enhanced_message)
 
 
 class ValidationError(XenonException):
@@ -60,3 +98,65 @@ class RepairError(XenonException):
     """
 
     pass
+
+
+def get_context_snippet(text: str, position: int, max_length: int = 50) -> str:
+    """
+    Extract a context snippet around a position in text.
+
+    Args:
+        text: The full text
+        position: Character position (0-indexed)
+        max_length: Maximum length of context snippet
+
+    Returns:
+        Context snippet with position marker
+
+    Example:
+        >>> get_context_snippet("Hello world test", 6, 20)
+        'Hello world...'
+    """
+    if not text or position < 0 or position >= len(text):
+        return ""
+
+    # Get surrounding context
+    start = max(0, position - max_length // 2)
+    end = min(len(text), position + max_length // 2)
+    snippet = text[start:end]
+
+    # Add ellipsis if truncated
+    if start > 0:
+        snippet = "..." + snippet
+    if end < len(text):
+        snippet = snippet + "..."
+
+    return snippet.strip()
+
+
+def get_line_column(text: str, position: int) -> tuple[int, int]:
+    """
+    Convert character position to line and column numbers.
+
+    Args:
+        text: The full text
+        position: Character position (0-indexed)
+
+    Returns:
+        Tuple of (line, column) both 1-indexed
+
+    Example:
+        >>> get_line_column("line1\\nline2\\nline3", 8)
+        (2, 3)
+    """
+    if not text or position < 0:
+        return (1, 1)
+
+    # Count newlines before position
+    lines_before = text[:position].count("\n")
+    line = lines_before + 1
+
+    # Find start of current line
+    line_start = text.rfind("\n", 0, position) + 1
+    column = position - line_start + 1
+
+    return (line, column)
