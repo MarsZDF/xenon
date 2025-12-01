@@ -57,7 +57,7 @@ class TestEncodingDetection:
 
     def test_detect_utf8_without_bom(self):
         """Test UTF-8 detection without BOM."""
-        data = "<root>café</root>".encode("utf-8")
+        data = "<root>café</root>".encode()
         encoding, confidence = detect_encoding(data)
 
         assert encoding.lower() == "utf-8"
@@ -76,7 +76,7 @@ class TestEncodingNormalization:
 
     def test_normalize_utf8_bytes(self):
         """Test normalizing UTF-8 bytes to string."""
-        data = "café".encode("utf-8")
+        data = "café".encode()
         result = normalize_encoding(data)
 
         assert result == "café"

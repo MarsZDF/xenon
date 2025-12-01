@@ -17,7 +17,6 @@ from xenon import (
     repair_xml_safe,
 )
 
-
 # Test data of varying sizes
 SMALL_XML = '<root><item>test</item></root>'
 SMALL_TRUNCATED = '<root><item>test'

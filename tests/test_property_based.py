@@ -4,16 +4,17 @@ These tests use generative testing to find edge cases and ensure robustness.
 """
 
 import pytest
-from hypothesis import given, strategies as st, assume, settings
-from hypothesis.strategies import text, integers, composite
+from hypothesis import assume, given, settings
+from hypothesis import strategies as st
+from hypothesis.strategies import composite, integers, text
 
 from xenon import (
-    repair_xml,
-    repair_xml_safe,
-    repair_xml_lenient,
     parse_xml,
-    parse_xml_safe,
     parse_xml_lenient,
+    parse_xml_safe,
+    repair_xml,
+    repair_xml_lenient,
+    repair_xml_safe,
 )
 from xenon.exceptions import XenonException
 

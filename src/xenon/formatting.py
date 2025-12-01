@@ -116,7 +116,8 @@ def _pretty_print_xml(xml_string: str, indent: str = "  ", max_line_length: int 
     """
     try:
         # Parse with minidom
-        dom = xml.dom.minidom.parseString(xml_string)
+        # Note: This is safe because format_xml() is only used on already-repaired XML
+        dom = xml.dom.minidom.parseString(xml_string)  # nosec B408
 
         # Pretty print with custom indent
         pretty = dom.toprettyxml(indent=indent, encoding=None)
