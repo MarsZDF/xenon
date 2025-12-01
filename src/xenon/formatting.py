@@ -1,7 +1,7 @@
 """XML formatting utilities for Xenon."""
 
 import re
-import xml.dom.minidom
+import xml.dom.minidom  # nosec B408 - Only used on already-repaired XML
 from typing import Literal
 
 FormatStyle = Literal["pretty", "compact", "minify"]
@@ -117,7 +117,7 @@ def _pretty_print_xml(xml_string: str, indent: str = "  ", max_line_length: int 
     try:
         # Parse with minidom
         # Note: This is safe because format_xml() is only used on already-repaired XML
-        dom = xml.dom.minidom.parseString(xml_string)  # nosec B408
+        dom = xml.dom.minidom.parseString(xml_string)  # nosec B318
 
         # Pretty print with custom indent
         pretty = dom.toprettyxml(indent=indent, encoding=None)

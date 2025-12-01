@@ -5,7 +5,7 @@ This module provides a hierarchy of exceptions that make it easy to handle
 different types of errors that can occur during XML repair operations.
 """
 
-from typing import Optional
+from typing import Optional, Tuple
 
 
 class XenonException(Exception):
@@ -133,7 +133,7 @@ def get_context_snippet(text: str, position: int, max_length: int = 50) -> str:
     return snippet.strip()
 
 
-def get_line_column(text: str, position: int) -> tuple[int, int]:
+def get_line_column(text: str, position: int) -> Tuple[int, int]:
     """
     Convert character position to line and column numbers.
 
