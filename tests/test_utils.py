@@ -38,9 +38,9 @@ class TestDecodeXml:
 
     def test_decode_xml_with_bom(self):
         """Test decoding with BOM auto-detection."""
-        xml_bytes = b'\xef\xbb\xbf<root>test</root>'
+        xml_bytes = b"\xef\xbb\xbf<root>test</root>"
         result = decode_xml(xml_bytes)
-        assert '<root>test</root>' in result
+        assert "<root>test</root>" in result
 
 
 class TestBatchRepair:

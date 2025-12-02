@@ -24,7 +24,13 @@ from xenon.exceptions import XenonException
 def xml_tag_names(draw):
     """Generate valid XML tag names (start with letter/underscore)."""
     first_char = draw(st.sampled_from("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ_"))
-    rest = draw(st.text(alphabet="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-", min_size=0, max_size=15))
+    rest = draw(
+        st.text(
+            alphabet="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-",
+            min_size=0,
+            max_size=15,
+        )
+    )
     return first_char + rest
 
 
@@ -32,7 +38,13 @@ def xml_tag_names(draw):
 def simple_xml_elements(draw):
     """Generate simple, well-formed XML elements."""
     tag = draw(xml_tag_names())
-    content = draw(st.text(alphabet="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 ", min_size=0, max_size=50))
+    content = draw(
+        st.text(
+            alphabet="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 ",
+            min_size=0,
+            max_size=50,
+        )
+    )
     return f"<{tag}>{content}</{tag}>"
 
 
@@ -40,7 +52,13 @@ def simple_xml_elements(draw):
 def truncated_xml(draw):
     """Generate truncated/incomplete XML."""
     tag = draw(xml_tag_names())
-    content = draw(st.text(alphabet="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 ", min_size=0, max_size=50))
+    content = draw(
+        st.text(
+            alphabet="abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789 ",
+            min_size=0,
+            max_size=50,
+        )
+    )
     # Truncate at various points
     truncation_point = draw(st.integers(min_value=0, max_value=len(content)))
     return f"<{tag}>{content[:truncation_point]}"
@@ -99,13 +117,18 @@ class TestPropertyBasedRobustness:
         assert isinstance(result, str)
         # Should have added closing tags
         if "<" in xml:
-            assert result.count("<") <= result.count(">") + 10  # Allow some imbalance for edge cases
+            assert (
+                result.count("<") <= result.count(">") + 10
+            )  # Allow some imbalance for edge cases
 
 
 class TestPropertyBasedCorrectness:
     """Test correctness properties of repair functions."""
 
-    @given(xml_tag_names(), st.text(alphabet="abcdefghijklmnopqrstuvwxyz0123456789-_", min_size=1, max_size=20))
+    @given(
+        xml_tag_names(),
+        st.text(alphabet="abcdefghijklmnopqrstuvwxyz0123456789-_", min_size=1, max_size=20),
+    )
     @settings(max_examples=100, deadline=None)
     def test_unquoted_attributes_get_quoted(self, tag, value):
         """Unquoted attribute values should get quoted."""

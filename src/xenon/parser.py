@@ -866,7 +866,11 @@ class XMLRepairEngine:
             text_buffer = []
 
             # Check if we should wrap in CDATA
-            if in_cdata_candidate and self.auto_wrap_cdata and self._content_needs_cdata(combined_text):
+            if (
+                in_cdata_candidate
+                and self.auto_wrap_cdata
+                and self._content_needs_cdata(combined_text)
+            ):
                 result.append(self._wrap_in_cdata(combined_text))
             else:
                 # Escape entities normally

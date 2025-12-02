@@ -69,7 +69,7 @@ class TestCDATAWrapping:
 
     def test_cdata_handles_embedded_cdata_terminator(self):
         """CDATA should handle ]]> in content by splitting CDATA sections."""
-        xml = "<code>char* end = strstr(buf, \"]]>\");</code>"
+        xml = '<code>char* end = strstr(buf, "]]>");</code>'
         result = repair_xml_safe(xml, auto_wrap_cdata=True)
 
         # Should escape the ]]> properly
@@ -112,9 +112,7 @@ class TestCDATAWrapping:
     def test_cdata_combined_with_other_features(self):
         """CDATA should work alongside other repair features."""
         xml = "<root><code>value > threshold</code></root>"
-        result = repair_xml_safe(
-            xml, auto_wrap_cdata=True, wrap_multiple_roots=False
-        )
+        result = repair_xml_safe(xml, auto_wrap_cdata=True, wrap_multiple_roots=False)
 
         # Should wrap CDATA for code content
         assert "<![CDATA[value > threshold]]>" in result
@@ -137,9 +135,7 @@ class TestCDATAWrapping:
         for tag in candidate_tags:
             xml = f"<{tag}>x < 5 && y > 3</{tag}>"
             result = repair_xml_safe(xml, auto_wrap_cdata=True)
-            assert (
-                "<![CDATA[" in result
-            ), f"Tag <{tag}> should trigger CDATA wrapping"
+            assert "<![CDATA[" in result, f"Tag <{tag}> should trigger CDATA wrapping"
 
     def test_cdata_case_insensitive_tags(self):
         """CDATA detection should be case-insensitive."""

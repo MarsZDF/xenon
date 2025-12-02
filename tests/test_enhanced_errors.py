@@ -38,12 +38,7 @@ class TestExceptionEnhancements:
 
     def test_exception_with_all_info(self):
         """Test exception with all context information."""
-        exc = XenonException(
-            "Invalid tag",
-            line=3,
-            column=8,
-            context="<root><bad tag>"
-        )
+        exc = XenonException("Invalid tag", line=3, column=8, context="<root><bad tag>")
         assert exc.line == 3
         assert exc.column == 8
         assert "line 3, column 8" in str(exc)
@@ -57,12 +52,7 @@ class TestExceptionEnhancements:
 
     def test_malformed_xml_error_inherits_enhancement(self):
         """Test that MalformedXMLError inherits enhancements."""
-        exc = MalformedXMLError(
-            "Unclosed tag",
-            line=5,
-            column=3,
-            context="<root><item"
-        )
+        exc = MalformedXMLError("Unclosed tag", line=5, column=3, context="<root><item")
         assert exc.line == 5
         assert exc.column == 3
         assert "line 5, column 3" in str(exc)
@@ -158,12 +148,7 @@ class TestRealWorldErrorScenarios:
         line, col = get_line_column(xml, position)
         context = get_context_snippet(xml, position, max_length=30)
 
-        exc = MalformedXMLError(
-            "Invalid tag name",
-            line=line,
-            column=col,
-            context=context
-        )
+        exc = MalformedXMLError("Invalid tag name", line=line, column=col, context=context)
 
         assert exc.line == 3
         assert "line 3" in str(exc)
@@ -176,12 +161,7 @@ class TestRealWorldErrorScenarios:
         line, col = get_line_column(xml, position)
         context = get_context_snippet(xml, position)
 
-        exc = MalformedXMLError(
-            "Unexpected end of input",
-            line=line,
-            column=col,
-            context=context
-        )
+        exc = MalformedXMLError("Unexpected end of input", line=line, column=col, context=context)
 
         assert "another" in str(exc)
         assert "line 1" in str(exc)
@@ -204,7 +184,7 @@ class TestRealWorldErrorScenarios:
             "Unquoted attribute value",
             line=line,
             column=col,
-            context=get_context_snippet(xml, position, 40)
+            context=get_context_snippet(xml, position, 40),
         )
 
         assert exc.line == 4

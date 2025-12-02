@@ -7,48 +7,48 @@ from typing import Dict, Match
 # Common HTML entities that LLMs might use
 HTML_ENTITIES = {
     # Typography
-    "nbsp": "\u00A0",  # non-breaking space
-    "copy": "\u00A9",  # ©
-    "reg": "\u00AE",  # ®
+    "nbsp": "\u00a0",  # non-breaking space
+    "copy": "\u00a9",  # ©
+    "reg": "\u00ae",  # ®
     "trade": "\u2122",  # ™
-    "euro": "\u20AC",  # €
-    "pound": "\u00A3",  # £
-    "yen": "\u00A5",  # ¥
-    "cent": "\u00A2",  # ¢
+    "euro": "\u20ac",  # €
+    "pound": "\u00a3",  # £
+    "yen": "\u00a5",  # ¥
+    "cent": "\u00a2",  # ¢
     # Dashes and quotes
     "ndash": "\u2013",  # –
     "mdash": "\u2014",  # —
     "lsquo": "\u2018",  # '
     "rsquo": "\u2019",  # '
-    "ldquo": "\u201C",  # "
-    "rdquo": "\u201D",  # "
-    "sbquo": "\u201A",  # ‚
-    "bdquo": "\u201E",  # „
+    "ldquo": "\u201c",  # "
+    "rdquo": "\u201d",  # "
+    "sbquo": "\u201a",  # ‚
+    "bdquo": "\u201e",  # „
     # Math and symbols
-    "times": "\u00D7",  # ×
-    "divide": "\u00F7",  # ÷
-    "plusmn": "\u00B1",  # ±
-    "deg": "\u00B0",  # °
-    "micro": "\u00B5",  # µ
-    "para": "\u00B6",  # ¶
-    "middot": "\u00B7",  # ·
-    "frac14": "\u00BC",  # ¼
-    "frac12": "\u00BD",  # ½
-    "frac34": "\u00BE",  # ¾
+    "times": "\u00d7",  # ×
+    "divide": "\u00f7",  # ÷
+    "plusmn": "\u00b1",  # ±
+    "deg": "\u00b0",  # °
+    "micro": "\u00b5",  # µ
+    "para": "\u00b6",  # ¶
+    "middot": "\u00b7",  # ·
+    "frac14": "\u00bc",  # ¼
+    "frac12": "\u00bd",  # ½
+    "frac34": "\u00be",  # ¾
     # Arrows
     "larr": "\u2190",  # ←
     "rarr": "\u2192",  # →
     "uarr": "\u2191",  # ↑
     "darr": "\u2193",  # ↓
     # Greek letters (common ones)
-    "alpha": "\u03B1",
-    "beta": "\u03B2",
-    "gamma": "\u03B3",
-    "delta": "\u03B4",
-    "pi": "\u03C0",
-    "sigma": "\u03C3",
+    "alpha": "\u03b1",
+    "beta": "\u03b2",
+    "gamma": "\u03b3",
+    "delta": "\u03b4",
+    "pi": "\u03c0",
+    "sigma": "\u03c3",
     # Special characters
-    "sect": "\u00A7",  # §
+    "sect": "\u00a7",  # §
     "hellip": "\u2026",  # …
     "bull": "\u2022",  # •
 }

@@ -35,7 +35,11 @@ def decode_xml(xml_bytes: bytes, encoding: Optional[str] = None) -> str:
 
 
 def batch_repair(
-    xml_strings: List[str], *, show_progress: bool = False, on_error: str = "skip", **repair_kwargs: Any
+    xml_strings: List[str],
+    *,
+    show_progress: bool = False,
+    on_error: str = "skip",
+    **repair_kwargs: Any,
 ) -> List[Tuple[str, Optional[Exception]]]:
     """
     Repair multiple XML strings in batch with error handling.

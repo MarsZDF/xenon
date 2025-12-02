@@ -253,8 +253,7 @@ def repair_xml_safe(
         xml_string = normalize_entities(xml_string, mode="unicode")
     elif html_entities is not None:
         raise ValueError(
-            f"Invalid html_entities value: {html_entities!r}. "
-            f"Use 'numeric', 'unicode', or None"
+            f"Invalid html_entities value: {html_entities!r}. Use 'numeric', 'unicode', or None"
         )
 
     # Step 3: Attempt repair with error handling
