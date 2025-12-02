@@ -2,7 +2,7 @@
 
 import html
 import re
-from typing import Dict
+from typing import Dict, Match
 
 # Common HTML entities that LLMs might use
 HTML_ENTITIES = {
@@ -74,7 +74,7 @@ def convert_html_entities_to_numeric(text: str, preserve_xml_entities: bool = Tr
     """
     xml_entities = {"lt", "gt", "amp", "quot", "apos"}
 
-    def replace_entity(match):
+    def replace_entity(match: Match[str]) -> str:
         entity_name = match.group(1)
 
         # Preserve XML entities if requested
@@ -112,7 +112,7 @@ def convert_html_entities_to_unicode(text: str, preserve_xml_entities: bool = Tr
     """
     xml_entities = {"lt", "gt", "amp", "quot", "apos"}
 
-    def replace_entity(match):
+    def replace_entity(match: Match[str]) -> str:
         entity_name = match.group(1)
 
         # Preserve XML entities if requested
@@ -182,7 +182,7 @@ def detect_html_entities(text: str) -> Dict[str, int]:
         >>> detect_html_entities("&copy;2024 &mdash; &copy;XYZ")
         {'copy': 2, 'mdash': 1}
     """
-    entities = {}
+    entities: Dict[str, int] = {}
     xml_entities = {"lt", "gt", "amp", "quot", "apos"}
 
     for match in re.finditer(r"&([a-zA-Z]+);", text):

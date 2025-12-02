@@ -1,7 +1,7 @@
 """XML preprocessing component for tag and namespace fixes."""
 
 import re
-from typing import Dict
+from typing import Dict, Match, Tuple
 
 from .config import RepairFlags, XMLRepairConfig
 
@@ -54,7 +54,7 @@ class XMLPreprocessor:
         """
         tag_pattern = r"<(/?)([^>]+?)(/?)>"
 
-        def transform_tag(match):
+        def transform_tag(match: Match[str]) -> str:
             slash, inner_content, self_closing = match.groups()
             inner_content = inner_content.strip()
 
@@ -87,7 +87,7 @@ class XMLPreprocessor:
 
         return re.sub(tag_pattern, transform_tag, xml_string)
 
-    def _extract_tag_name(self, inner_content: str) -> tuple:
+    def _extract_tag_name(self, inner_content: str) -> Tuple[str, str]:
         """
         Extract tag name from tag content.
 

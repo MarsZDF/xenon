@@ -1,7 +1,7 @@
 """Utility functions for Xenon XML repair library."""
 
 import re
-from typing import Callable, Iterator, List, Optional, Tuple
+from typing import Any, Callable, Iterator, List, Optional, Tuple
 
 from .encoding import detect_encoding
 from .reporting import RepairReport
@@ -35,7 +35,7 @@ def decode_xml(xml_bytes: bytes, encoding: Optional[str] = None) -> str:
 
 
 def batch_repair(
-    xml_strings: List[str], *, show_progress: bool = False, on_error: str = "skip", **repair_kwargs
+    xml_strings: List[str], *, show_progress: bool = False, on_error: str = "skip", **repair_kwargs: Any
 ) -> List[Tuple[str, Optional[Exception]]]:
     """
     Repair multiple XML strings in batch with error handling.
@@ -62,7 +62,7 @@ def batch_repair(
     from . import repair_xml_safe
     from .exceptions import XenonException
 
-    results = []
+    results: List[Tuple[str, Optional[Exception]]] = []
     total = len(xml_strings)
 
     for i, xml_string in enumerate(xml_strings):
@@ -134,7 +134,7 @@ def batch_repair_with_reports(
 
 
 def stream_repair(
-    xml_iterator: Iterator[str], **repair_kwargs
+    xml_iterator: Iterator[str], **repair_kwargs: Any
 ) -> Iterator[Tuple[str, Optional[Exception]]]:
     """
     Repair XML strings from an iterator (for streaming/large datasets).

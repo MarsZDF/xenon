@@ -1,5 +1,5 @@
 import re
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Match, Optional, Tuple
 
 from .config import RepairFlags, SecurityFlags, XMLRepairConfig
 from .preprocessor import XMLPreprocessor
@@ -14,7 +14,7 @@ class XMLToken:
 
 
 class XMLParseState:
-    def __init__(self):
+    def __init__(self) -> None:
         self.position = 0
         self.stack: List[str] = []
         self.tokens: List[XMLToken] = []
@@ -245,7 +245,7 @@ class XMLRepairEngine:
             return len(s1)
 
         # Use rolling array optimization to save memory
-        previous_row = range(len(s2) + 1)
+        previous_row = list(range(len(s2) + 1))
 
         for i, c1 in enumerate(s1):
             current_row = [i + 1]
@@ -299,8 +299,8 @@ class XMLRepairEngine:
                 best_index = i
 
         # Only return match if within threshold
-        if best_distance <= self.match_threshold:
-            return (best_index, best_match, best_distance)
+        if best_distance <= self.match_threshold and best_match is not None:
+            return (best_index, best_match, int(best_distance))
 
         return None
 
@@ -616,7 +616,7 @@ class XMLRepairEngine:
         # Find all valid entities and temporarily replace them with placeholders
         entities = []
 
-        def save_entity(match):
+        def save_entity(match: Match[str]) -> str:
             entities.append(match.group(0))
             return f"\x00ENTITY{len(entities) - 1}\x00"
 
@@ -648,7 +648,7 @@ class XMLRepairEngine:
         # Find all valid entities and temporarily replace them with placeholders
         entities = []
 
-        def save_entity(match):
+        def save_entity(match: Match[str]) -> str:
             entities.append(match.group(0))
             return f"\x00ENTITY{len(entities) - 1}\x00"
 
@@ -851,11 +851,11 @@ class XMLRepairEngine:
         tag_stack = []  # Stack stores tuples of (original_case, lowercase) for case-insensitive matching
         dangerous_tag_stack = []  # Track dangerous tags to skip their content
         first_open_tag = True  # Track first tag for namespace injection
-        text_buffer = []  # Buffer for collecting text content in CDATA candidate tags
+        text_buffer: List[str] = []  # Buffer for collecting text content in CDATA candidate tags
         in_cdata_candidate = False  # Are we currently inside a CDATA candidate tag?
         i = 0
 
-        def flush_text_buffer():
+        def flush_text_buffer() -> None:
             """Flush buffered text content, wrapping in CDATA if needed."""
             nonlocal text_buffer, in_cdata_candidate, result
             if not text_buffer:
@@ -1104,10 +1104,10 @@ class XMLRepairEngine:
         return self._build_dict_from_tokens(tokens)
 
     def _build_dict_from_tokens(self, tokens: List[XMLToken]) -> Dict[str, Any]:
-        result = {}
+        result: Dict[str, Any] = {}
         stack = [result]
         current_element = None
-        text_buffer = []
+        text_buffer: List[str] = []
 
         i = 0
         while i < len(tokens):
@@ -1145,7 +1145,7 @@ class XMLRepairEngine:
                 # Add accumulated text if any
                 if text_buffer:
                     text_content = "".join(text_buffer).strip()
-                    if text_content and len(stack) > 1:
+                    if text_content and len(stack) > 1 and current_element is not None:
                         current_dict = stack[-1]
                         if not current_dict:  # Empty dict, just add text
                             stack[-2][current_element] = text_content

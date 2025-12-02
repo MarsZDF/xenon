@@ -5,7 +5,7 @@ This module provides functions to validate inputs before processing,
 catching common errors early with helpful error messages.
 """
 
-from typing import Any
+from typing import Any, Optional
 
 from .exceptions import ValidationError
 
@@ -15,7 +15,7 @@ DEFAULT_MAX_SIZE = 100 * 1024 * 1024
 
 
 def validate_xml_input(
-    xml_input: Any, allow_empty: bool = False, max_size: int = DEFAULT_MAX_SIZE
+    xml_input: Any, allow_empty: bool = False, max_size: Optional[int] = DEFAULT_MAX_SIZE
 ) -> None:
     """
     Validate XML input before processing.
@@ -59,7 +59,7 @@ def validate_xml_input(
         max_bytes = max_size
 
         # Format sizes intelligently based on magnitude
-        def format_size(size_in_bytes):
+        def format_size(size_in_bytes: int) -> str:
             if size_in_bytes >= 1024 * 1024:  # >= 1MB
                 return f"{size_in_bytes / (1024 * 1024):.2f}MB"
             elif size_in_bytes >= 1024:  # >= 1KB
