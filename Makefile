@@ -1,19 +1,21 @@
-.PHONY: help check fix test lint format typecheck clean all
+.PHONY: help check fix test lint format typecheck clean install-hooks all
 
 # Default target
 help:
 	@echo "Xenon Development Commands:"
 	@echo ""
-	@echo "  make check      - Run all checks (lint, format, type, test)"
-	@echo "  make fix        - Auto-fix issues (lint + format)"
-	@echo "  make test       - Run test suite"
-	@echo "  make lint       - Run ruff linting"
-	@echo "  make format     - Run ruff formatting"
-	@echo "  make typecheck  - Run mypy type checking"
-	@echo "  make clean      - Clean cache files"
+	@echo "  make check         - Run all checks (lint, format, type, test)"
+	@echo "  make fix           - Auto-fix issues (lint + format)"
+	@echo "  make test          - Run test suite"
+	@echo "  make lint          - Run ruff linting"
+	@echo "  make format        - Run ruff formatting"
+	@echo "  make typecheck     - Run mypy type checking"
+	@echo "  make install-hooks - Install git pre-commit hook"
+	@echo "  make clean         - Clean cache files"
 	@echo ""
 	@echo "Quick workflow:"
-	@echo "  make fix && make check    # Fix issues then verify"
+	@echo "  make install-hooks           # One-time setup"
+	@echo "  make fix && make check       # Fix issues then verify"
 
 # Run all checks (what CI runs)
 check: lint format typecheck test
@@ -53,6 +55,16 @@ clean:
 	rm -rf .pytest_cache .mypy_cache .ruff_cache htmlcov .coverage
 	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
 	@echo "✅ Clean complete."
+
+# Install git pre-commit hook
+install-hooks:
+	@echo "📌 Installing git pre-commit hook..."
+	@cp hooks/pre-commit .git/hooks/pre-commit
+	@chmod +x .git/hooks/pre-commit
+	@echo "✅ Git pre-commit hook installed!"
+	@echo ""
+	@echo "The hook will run 'make check' before every commit."
+	@echo "To skip the hook: git commit --no-verify"
 
 # Run everything (fix + check)
 all: fix check
