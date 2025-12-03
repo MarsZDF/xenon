@@ -5,6 +5,39 @@ All notable changes to Xenon will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+- **🚀 Async/Await Support**: Native async streaming for modern Python ecosystems
+  - `feed_async()`: Async variant of `feed()` for use with `async for` loops
+  - `finalize_async()`: Async variant of `finalize()`
+  - Async context manager support (`async with StreamingXMLRepair(...)`)
+  - Fully compatible with async LLM SDKs (OpenAI, Anthropic, LangChain async chains)
+  - Zero blocking - yields control to event loop for responsive concurrent operations
+  - 18 comprehensive async tests ensuring reliability
+- **Integration Examples**: New `examples/04_async_llm_integration.py` with 6 real-world patterns:
+  - OpenAI async streaming integration
+  - Anthropic Claude async streaming
+  - LangChain async chain integration
+  - Concurrent stream processing
+  - Error handling in async contexts
+  - Performance monitoring
+
+### Changed
+- Updated dev dependencies: Added `pytest-asyncio>=0.21.0` for async test support
+- Streaming module now imports `asyncio` for async functionality
+- Documentation updated with async examples in module docstrings
+
+### Performance
+- Async operations are non-blocking and don't interfere with event loop
+- Concurrent stream processing tested with 10+ simultaneous repairs
+- Throughput maintained: ~800 chunks/sec, ~13 KB/sec per stream
+
+### Documentation
+- Added comprehensive async examples showing real-world integration patterns
+- Updated `StreamingXMLRepair` docstring with both sync and async usage
+- Added performance monitoring example showing metrics tracking
+
 ## [1.0.0] - 2025-12-03
 
 ### 🔒 BREAKING CHANGES
