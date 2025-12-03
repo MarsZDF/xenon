@@ -189,7 +189,7 @@ class XMLRepairEngine:
             strip_dangerous_tags=config_obj.strip_dangerous_tags,
             escape_unsafe_attributes=config_obj.escape_unsafe_attributes,
             max_depth=config_obj.max_depth,
-            schema_content=None, # from_trust_level doesn't provide a schema content by default
+            schema_content=None,  # from_trust_level doesn't provide a schema content by default
         )
 
     def _is_cdata_candidate_tag(self, tag_name: str) -> bool:

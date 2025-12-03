@@ -411,24 +411,25 @@ class TestTrustLevelEnforcement:
         assert "<item>data</item>" in result_internal
         assert "<item>data</item>" in result_trusted
 
+
 class TestXSSProtection:
     """Test suite for enhanced XSS protection."""
 
     def test_aggressive_attribute_escaping(self):
         """Test that aggressive attribute escaping prevents XSS."""
-        xml = "<root><a href=\"a ' b / c\">click</a></root>"
+        xml = '<root><a href="a \' b / c">click</a></root>'
         result = repair_xml_safe(xml, trust=TrustLevel.TRUSTED, escape_unsafe_attributes=True)
         assert 'href="a&#x20;&apos;&#x20;b&#x20;&#x2F;&#x20;c"' in result
 
     def test_aggressive_attribute_escaping_disabled(self):
         """Test that aggressive attribute escaping is disabled by default."""
-        xml = "<root><a href=\"a ' b / c\">click</a></root>"
+        xml = '<root><a href="a \' b / c">click</a></root>'
         result = repair_xml_safe(xml, trust=TrustLevel.TRUSTED)
         assert 'href="a \' b / c"' in result
 
     def test_aggressive_escaping_with_untrusted_level(self):
         """Test that UNTRUSTED trust level enables aggressive escaping by default."""
-        xml = "<root><a href=\"a ' b / c\">click</a></root>"
+        xml = '<root><a href="a \' b / c">click</a></root>'
         result = repair_xml_safe(xml, trust=TrustLevel.UNTRUSTED)
         assert 'href="a&#x20;&apos;&#x20;b&#x20;&#x2F;&#x20;c"' in result
 

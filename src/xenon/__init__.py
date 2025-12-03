@@ -233,13 +233,12 @@ def repair_xml_safe(
         v0.6.0 Features:
             format_output: Output formatting - 'pretty', 'compact', 'minify', or None
             html_entities: HTML entity handling - 'numeric', 'unicode', or None
+            html_entities: HTML entity handling - 'numeric', 'unicode', or None
             normalize_unicode: Apply Unicode NFC normalization
-        
+
         Schema validation:
             schema_content: The content of the schema (XSD or DTD) as a string.
-
     Returns:
-        Repaired XML string
 
     Raises:
         ValidationError: If input is invalid
@@ -336,6 +335,7 @@ def repair_xml_safe(
         # Step 7: Apply schema validation if requested
         if schema_content and security_config.validate_output_schema:
             from .validation import validate_with_schema
+
             validate_with_schema(result, schema_content)
 
         return result

@@ -3,7 +3,7 @@
 import pytest
 
 from xenon.exceptions import ValidationError
-from xenon.validation import validate_repaired_output, validate_xml_input, validate_with_schema
+from xenon.validation import validate_repaired_output, validate_with_schema, validate_xml_input
 
 
 class TestInputValidation:
@@ -70,6 +70,7 @@ class TestOutputValidation:
 _lxml_installed = False
 try:
     from lxml import etree
+
     _lxml_installed = True
 except ImportError:
     pass
@@ -106,26 +107,29 @@ class TestSchemaValidation:
         with pytest.raises(ValidationError) as excinfo:
             validate_with_schema(xml, self.XSD_SCHEMA)
         assert "Schema validation failed" in str(excinfo.value)
-        assert "Element 'wrong_item': This element is not expected. Expected is ( item )." in str(excinfo.value)
+        assert "Element 'wrong_item': This element is not expected. Expected is ( item )." in str(
+            excinfo.value
+        )
 
     def test_valid_xml_against_dtd(self):
         """Test valid XML passes DTD validation."""
-        xml = """<!DOCTYPE root [
-{}
+        xml = f"""<!DOCTYPE root [
+{self.DTD_SCHEMA}
 ]>
-<root><item>test</item></root>""".format(self.DTD_SCHEMA)
+<root><item>test</item></root>"""
         validate_with_schema(xml, self.DTD_SCHEMA)  # Should not raise
 
     def test_invalid_xml_against_dtd(self):
         """Test invalid XML raises ValidationError for DTD."""
-        xml = """<!DOCTYPE root [
-{}
+        xml = f"""<!DOCTYPE root [
+{self.DTD_SCHEMA}
 ]>
-<root><wrong_item>test</wrong_item></root>""".format(self.DTD_SCHEMA)
+<root><wrong_item>test</wrong_item></root>"""
         with pytest.raises(ValidationError) as excinfo:
             validate_with_schema(xml, self.DTD_SCHEMA)
         assert "DTD validation failed" in str(excinfo.value)
         assert "Element root content does not follow the DTD" in str(excinfo.value)
+
 
 @pytest.mark.skipif(_lxml_installed, reason="lxml is installed")
 class TestSchemaValidationNoLXML:
@@ -136,6 +140,7 @@ class TestSchemaValidationNoLXML:
         # To simulate lxml not installed, we temporarily remove it from sys.modules
         # This is a bit hacky but works for testing optional dependency behavior
         import sys
+
         if "lxml" in sys.modules:
             _lxml = sys.modules["lxml"]
             del sys.modules["lxml"]

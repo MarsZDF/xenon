@@ -484,6 +484,7 @@ def repair_and_transform(xml: str) -> str:
 ```python
 from xenon import repair_xml_safe
 from lxml import etree
+from xenon import TrustLevel, ValidationError # Added TrustLevel and ValidationError
 
 def repair_and_validate_schema_external(xml: str, xsd_path: str) -> tuple[str, bool]:
     """
@@ -491,8 +492,8 @@ def repair_and_validate_schema_external(xml: str, xsd_path: str) -> tuple[str, b
     Use Xenon's built-in schema validation instead where possible.
     """
 
-    # Repair first
-    repaired = repair_xml_safe(xml)
+    # Repair first (assuming UNTRUSTED input)
+    repaired = repair_xml_safe(xml, trust=TrustLevel.UNTRUSTED) # Added trust level
 
     # Validate against schema
     schema = etree.XMLSchema(etree.parse(xsd_path))
@@ -502,13 +503,15 @@ def repair_and_validate_schema_external(xml: str, xsd_path: str) -> tuple[str, b
     if not is_valid:
         errors = schema.error_log
         print(f"Schema validation errors: {errors}")
+        raise ValidationError(f"XML failed external schema validation: {errors}") # Added exception
 
     return repaired, is_valid
 
 # Usage
-xml, valid = repair_and_validate_schema_external(llm_output, 'schema.xsd')
-if valid:
-    process_xml(xml)
+# Assuming llm_output and 'schema.xsd' exist
+# xml, valid = repair_and_validate_schema_external(llm_output, 'schema.xsd')
+# if valid:
+#     process_xml(xml)
 ```
 
 ### Recipe 17: In-place Schema Validation (NEW)
@@ -649,7 +652,7 @@ if patterns['by_category']['structural'] > patterns['total_repairs'] * 0.3:
 ### DO ✅
 
 - **Always** use `repair_xml_safe()` for production code
-- **Enable** security flags for untrusted input
+- **Enable** security flags for untrusted input (especially `escape_unsafe_attributes` for XSS protection)
 - **Use** `strict=True` when you need guaranteed valid XML
 - **Cache** repairs for repeated patterns
 - **Log** repair actions for audit trails
