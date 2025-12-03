@@ -124,8 +124,8 @@ class TestAttributeEscaping:
         """Test using XMLRepairEngine directly."""
         engine = XMLRepairEngine()
         xml = '<root attr="a & b">text</root>'
-        result = engine.repair_xml(xml)
-        assert "&amp;" in result
+        repaired_xml, _ = engine.repair_xml(xml)
+        assert "&amp;" in repaired_xml
 
     def test_quote_entity_in_attribute(self):
         """Test quote entity in attribute value."""

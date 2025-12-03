@@ -99,207 +99,66 @@ Fix #123: Handle malformed attributes with multiple spaces
 Update README with CDATA usage examples
 ```
 
+### Commit Message Guidelines
+
+This project follows the [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) specification. This is a lightweight convention on top of commit messages that provides an easy set of rules for creating an explicit commit history. This allows for automation of versioning and changelogs.
+
+A pre-commit hook is installed to enforce this format.
+
+**Format:**
+
+`<type>[optional scope]: <description>`
+
+**Common Types:**
+
+*   **`feat`**: A new feature for the user. (Triggers a `MINOR` version bump).
+*   **`fix`**: A bug fix for the user. (Triggers a `PATCH` version bump).
+*   **`docs`**: Documentation only changes.
+*   **`style`**: Changes that do not affect the meaning of the code (white-space, formatting, etc).
+*   **`refactor`**: A code change that neither fixes a bug nor adds a feature.
+*   **`perf`**: A code change that improves performance.
+*   **`test`**: Adding missing tests or correcting existing tests.
+*   **`ci`**: Changes to our CI configuration files and scripts.
+*   **`build`**: Changes that affect the build system or external dependencies.
+
+**Breaking Changes:**
+
+For a change that introduces a breaking change to the API, the commit body must contain a `BREAKING CHANGE:` footer. This will trigger a `MAJOR` version bump.
+
+**Example:**
+
+```
+feat(api): change repair_xml to return a tuple
+
+This is a new feature that provides more detailed output.
+
+BREAKING CHANGE: `repair_xml` now returns a `(str, Report)` tuple instead of a string.
+```
+
 ## Testing
 
 ### Running Tests
+.  
+.  
+.  
+# ... (rest of the file remains the same until Release Process)
+# ...
 
-```bash
-# Run all tests
-pytest
+## Release Process (Automated)
 
-# Run specific test file
-pytest tests/test_cdata_wrapping.py
+The release process is fully automated using [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/) and `python-semantic-release`.
 
-# Run with coverage report
-pytest --cov=xenon --cov-report=html
-
-# Run property-based tests (these take longer)
-pytest tests/test_property_based.py -v
-```
-
-### Writing Tests
-
-- **Unit tests**: Test individual functions and methods
-- **Integration tests**: Test feature workflows end-to-end
-- **Property-based tests**: Use Hypothesis for edge case discovery
-- **Coverage**: Aim for 80%+ coverage on new code
-
-Test file naming convention:
-- `test_*.py` for unit/integration tests
-- `test_property_based.py` for Hypothesis tests
-
-Example test:
-```python
-def test_cdata_wraps_code_content():
-    """Test that code tags with special chars get CDATA wrapped."""
-    xml = "<code>if (x < 5) { return; }</code>"
-    result = repair_xml_safe(xml, auto_wrap_cdata=True)
-
-    assert "<![CDATA[" in result
-    assert "if (x < 5)" in result
-```
-
-## Submitting Changes
-
-### Before Submitting
-
-1. **Run the full test suite**:
-   ```bash
-   pytest tests/
-   ```
-
-2. **Check code style**:
-   ```bash
-   ruff check src/ tests/
-   ruff format --check src/ tests/
-   ```
-
-3. **Run type checking** (optional, not required to pass):
-   ```bash
-   mypy src/xenon
-   ```
-
-4. **Update documentation** if you changed the API
-
-### Pull Request Process
-
-1. **Push your changes**:
-   ```bash
-   git push origin feature/your-feature-name
-   ```
-
-2. **Open a Pull Request** on GitHub with:
-   - Clear title describing the change
-   - Description of what changed and why
-   - Link to related issues
-   - Screenshots/examples if applicable
-
-3. **PR template** (use this structure):
-   ```markdown
-   ## Summary
-   Brief description of changes
-
-   ## Changes
-   - Added X feature
-   - Fixed Y bug
-   - Updated Z documentation
-
-   ## Testing
-   - [ ] Added tests for new functionality
-   - [ ] All tests pass locally
-   - [ ] Updated documentation
-
-   Fixes #123
-   ```
-
-4. **Respond to review feedback** promptly and professionally
-
-### CI/CD Pipeline
-
-Your PR will automatically trigger:
-- Tests on Python 3.8-3.12
-- Linting with ruff
-- Type checking with mypy (informational)
-- Security scanning with bandit
-- Coverage reporting
-
-All tests must pass before merging.
-
-## Code Style
-
-### Python Style
-
-We use **ruff** for linting and formatting (replaces black, isort, flake8):
-
-```bash
-# Format code
-ruff format src/ tests/
-
-# Check for issues
-ruff check src/ tests/
-
-# Auto-fix issues
-ruff check --fix src/ tests/
-```
-
-### Key Guidelines
-
-- **Line length**: 100 characters (configured in `pyproject.toml`)
-- **Imports**: Automatically sorted by ruff
-- **Docstrings**: Use for public functions/classes
-- **Type hints**: Encouraged but not required (we support Python 3.8+)
-- **Comments**: Explain *why*, not *what*
-
-### Docstring Format
-
-```python
-def repair_xml_safe(
-    xml_string: str,
-    strict: bool = False,
-    allow_empty: bool = False
-) -> str:
-    """
-    Safely repair XML with comprehensive error handling.
-
-    This function provides the same repair capabilities as repair_xml(),
-    but with robust error handling and input validation.
-
-    Args:
-        xml_string: The potentially malformed XML string to repair
-        strict: If True, validate repaired output
-        allow_empty: If True, accept empty input
-
-    Returns:
-        Repaired XML string
-
-    Raises:
-        ValidationError: If input is invalid
-
-    Example:
-        >>> repair_xml_safe('<root><item', strict=True)
-        '<root><item></item></root>'
-    """
-```
-
-## Adding New Features
-
-### Feature Design Checklist
-
-- [ ] Does this solve a real LLM XML problem?
-- [ ] Is the API intuitive and backward compatible?
-- [ ] Have you considered edge cases?
-- [ ] Is the feature opt-in (not breaking existing code)?
-- [ ] Is it documented with examples?
-
-### Feature Implementation Checklist
-
-- [ ] Implementation in `src/xenon/`
-- [ ] Comprehensive tests (unit + integration)
-- [ ] Property-based tests if applicable
-- [ ] Documentation in README
-- [ ] Example in `examples/` or docstrings
-- [ ] Update `__all__` exports if adding public API
-
-## Release Process
-
-(For maintainers)
-
-1. Update version in `pyproject.toml` and `src/xenon/__init__.py`
-2. Update `CHANGELOG.md`
-3. Create release commit: `git commit -m "Version X.Y.Z"`
-4. Tag release: `git tag vX.Y.Z`
-5. Push: `git push && git push --tags`
-6. Build and publish to PyPI:
-   ```bash
-   python -m build
-   twine upload dist/*
-   ```
+When a commit is merged to `main`, the CI/CD pipeline will automatically:
+1. Analyze the commit messages.
+2. Determine the correct new version number.
+3. Update the version in `pyproject.toml` and `src/xenon/__init__.py`.
+4. Generate a `CHANGELOG.md`.
+5. Commit the new version and changelog.
+6. Create a new Git tag and a GitHub Release.
 
 ## Getting Help
 
 - **Questions**: Open a GitHub Discussion or create an issue with the "question" label
-- **Bugs**: Use the bug report template
-- **Features**: Use the feature request template
 
 ## Recognition
 

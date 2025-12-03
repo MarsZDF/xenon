@@ -105,9 +105,9 @@ class TestCDATAWrapping:
         engine = XMLRepairEngine(config)
 
         xml = "<code>if (x < 5 && y > 3) { return; }</code>"
-        result = engine.repair_xml(xml)
+        repaired_xml, _ = engine.repair_xml(xml)
 
-        assert "<![CDATA[" in result
+        assert "<![CDATA[" in repaired_xml
 
     def test_cdata_combined_with_other_features(self):
         """CDATA should work alongside other repair features."""

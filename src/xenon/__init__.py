@@ -98,7 +98,7 @@ def repair_xml(xml_string: str, trust: TrustLevel) -> str:
         strip_dangerous_tags=security_config.strip_dangerous_tags,
         max_depth=security_config.max_depth,
     )
-    return engine.repair_xml(xml_string)
+    return engine.repair_xml(xml_string)[0]
 
 
 def repair_xml_with_report(xml_string: str, trust: TrustLevel) -> Tuple[str, RepairReport]:
@@ -116,59 +116,35 @@ def repair_xml_with_report(xml_string: str, trust: TrustLevel) -> Tuple[str, Rep
         tuple: (repaired_xml: str, report: RepairReport)
 
     Example:
-        >>> from xenon import repair_xml_with_report
+        >>> from xenon import repair_xml_with_report, RepairType
         >>> from xenon.trust import TrustLevel
         >>>
         >>> xml = '<root><item attr=unquoted>text & more'
         >>> result, report = repair_xml_with_report(xml, trust=TrustLevel.UNTRUSTED)
+        >>>
         >>> print(result)
         '<root><item attr="unquoted">text &amp; more</item></root>'
-        >>> print(report.summary())
-        Performed 3 repairs:
-          - Added closing tags for truncation
-          - Added quotes to attribute value
-          - Escaped unescaped ampersand
-        >>> print(f"Total repairs: {len(report)}")
-        Total repairs: 3
+        >>>
+        >>> # The report now contains specific, machine-readable actions
+        >>> print(len(report.actions))
+        3
+        >>>
+        >>> action_types = {action.repair_type for action in report.actions}
+        >>> print(RepairType.MALFORMED_ATTRIBUTE in action_types)
+        True
+        >>> print(RepairType.UNESCAPED_ENTITY in action_types)
+        True
+        >>> print(RepairType.TRUNCATION in action_types)
+        True
     """
-    # For now, create a basic report (we'll enhance XMLRepairEngine to populate this)
-    report = RepairReport(
-        original_xml=xml_string,
-        repaired_xml="",  # Will be set after repair
+    security_config = get_security_config(trust)
+    engine = XMLRepairEngine(
+        strip_dangerous_pis=security_config.strip_dangerous_pis,
+        strip_external_entities=security_config.strip_external_entities,
+        strip_dangerous_tags=security_config.strip_dangerous_tags,
+        max_depth=security_config.max_depth,
     )
-
-    # Perform repair with trust-based security
-    repaired = repair_xml(xml_string, trust=trust)
-    report.repaired_xml = repaired
-
-    # Basic detection of what happened (simple heuristics for now)
-    if len(repaired) > len(xml_string):
-        # Likely added closing tags
-        report.add_action(
-            RepairType.TRUNCATION, "Added missing closing tags", location="end of document"
-        )
-
-    if xml_string != xml_string.strip() and repaired == xml_string.strip():
-        # Whitespace trimmed
-        pass
-
-    if "&amp;" in repaired and "&amp;" not in xml_string:
-        # Escaped entities
-        report.add_action(
-            RepairType.UNESCAPED_ENTITY, "Escaped unescaped ampersands in text content"
-        )
-
-    if 'name="' in repaired and "name=" in xml_string and 'name="' not in xml_string:
-        # Fixed attributes
-        report.add_action(
-            RepairType.MALFORMED_ATTRIBUTE, "Added quotes to unquoted attribute values"
-        )
-
-    if "<![CDATA[" in repaired and "<![CDATA[" not in xml_string:
-        # Added CDATA
-        report.add_action(RepairType.CDATA_WRAPPED, "Wrapped code content in CDATA section")
-
-    return repaired, report
+    return engine.repair_xml(xml_string)
 
 
 def parse_xml(xml_string: str, trust: TrustLevel) -> Dict[str, Any]:
@@ -334,7 +310,7 @@ def repair_xml_safe(
             fix_namespace_syntax=fix_namespace_syntax,
             auto_wrap_cdata=auto_wrap_cdata,
         )
-        result = custom_engine.repair_xml(xml_string)
+        result, _ = custom_engine.repair_xml(xml_string)
 
         # Step 5: v0.6.0 - Apply formatting if requested
         if format_output is not None:
@@ -464,7 +440,7 @@ def repair_xml_lenient(xml_input: Any) -> str:
             xml_input = str(xml_input)
 
         # Attempt repair
-        return _engine.repair_xml(xml_input)
+        return _engine.repair_xml(xml_input)[0]
 
     except Exception:
         # Silently return empty string on any error

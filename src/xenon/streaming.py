@@ -203,7 +203,8 @@ class StreamingXMLRepair:
             elif self.state == StreamState.IN_TEXT:
                 # Text content at EOF
                 if self.buffer.strip():
-                    yield self._repair_engine.escape_entities(self.buffer)
+                    escaped_text, _ = self._repair_engine.escape_entities(self.buffer)
+                    yield escaped_text
                 self.buffer = ""
 
             elif self.state == StreamState.INITIAL:
@@ -283,13 +284,15 @@ class StreamingXMLRepair:
                         text = self.buffer[: -self.buffer_safety_margin]
                         self.buffer = self.buffer[-self.buffer_safety_margin :]
                         if text:
-                            yield self._repair_engine.escape_entities(text)
+                            escaped_text, _ = self._repair_engine.escape_entities(text)
+                            yield escaped_text
                     break
 
                 # Yield text before tag
                 if idx > 0:
                     text = self.buffer[:idx]
-                    yield self._repair_engine.escape_entities(text)
+                    escaped_text, _ = self._repair_engine.escape_entities(text)
+                    yield escaped_text
                     self.buffer = self.buffer[idx:]
 
                 # Check what kind of tag/construct this is
@@ -417,7 +420,7 @@ class StreamingXMLRepair:
         tag_content = tag_str[1:-1].strip()
 
         # Repair attributes using existing engine
-        repaired_content = self._repair_engine.fix_malformed_attributes(tag_content)
+        repaired_content, _ = self._repair_engine.fix_malformed_attributes(tag_content)
         repaired = f"<{repaired_content}>"
 
         # Extract tag name to track
@@ -434,7 +437,7 @@ class StreamingXMLRepair:
         """Repair self-closing tag attributes."""
         # Extract content without < and />
         tag_content = tag_str[1:-2].strip()
-        repaired_content = self._repair_engine.fix_malformed_attributes(tag_content)
+        repaired_content, _ = self._repair_engine.fix_malformed_attributes(tag_content)
         return f"<{repaired_content}/>"
 
     def _repair_incomplete_tag(self, tag_str: str) -> str:
@@ -455,7 +458,7 @@ class StreamingXMLRepair:
 
             # Repair attributes
             tag_content = tag_str[1:-1].strip()
-            repaired_content = self._repair_engine.fix_malformed_attributes(tag_content)
+            repaired_content, _ = self._repair_engine.fix_malformed_attributes(tag_content)
             tag_str = f"<{repaired_content}>"
 
             # Extract tag name to track

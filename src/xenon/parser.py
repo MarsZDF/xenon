@@ -3,9 +3,11 @@ from typing import TYPE_CHECKING, Any, Dict, List, Match, Optional, Tuple
 
 from .config import RepairFlags, SecurityFlags, XMLRepairConfig
 from .preprocessor import XMLPreprocessor
+from .reporting import RepairAction, RepairReport, RepairType
 from .security import XMLSecurityFilter
 
 if TYPE_CHECKING:
+    from .reporting import RepairReport
     from .trust import TrustLevel
 
 
@@ -423,7 +425,8 @@ class XMLRepairEngine:
 
         return text[xml_start:xml_end]
 
-    def fix_malformed_attributes(self, tag_content: str) -> str:
+    def fix_malformed_attributes(self, tag_content: str) -> Tuple[str, List["RepairAction"]]:
+        actions = []
         # Fix unquoted attribute values by parsing more carefully
         content = tag_content.strip()
 
@@ -444,7 +447,7 @@ class XMLRepairEngine:
             attr_start_pos = i
         else:
             # No attributes, just tag name
-            return content
+            return content, []
 
         # Now parse attributes
         result = [tag_name]
@@ -478,6 +481,13 @@ class XMLRepairEngine:
 
             # Skip if this is a duplicate attribute
             if attr_name_lower in seen_attrs:
+                actions.append(
+                    RepairAction(
+                        repair_type=RepairType.DUPLICATE_ATTRIBUTE,
+                        description=f"Removed duplicate attribute '{attr_name_lower}'",
+                        location=tag_name,
+                    )
+                )
                 # Parse the value but don't add to result
                 if i < len(content) and content[i] in ['"', "'"]:
                     quote_char = content[i]
@@ -548,11 +558,20 @@ class XMLRepairEngine:
                     i += 1
 
                 value = content[value_start:i].strip()
-                # Escape the value before adding
+                # Report this action
                 escaped_value = self.escape_attribute_value(value, '"')
+                actions.append(
+                    RepairAction(
+                        repair_type=RepairType.MALFORMED_ATTRIBUTE,
+                        description=f"Added quotes to unquoted attribute '{attr_name}'",
+                        location=tag_name,
+                        before=f"{attr_name}={value}",
+                        after=f'{attr_name}="{escaped_value}"',
+                    )
+                )
                 result.append(f' {attr_name}="{escaped_value}"')
 
-        return "".join(result)
+        return "".join(result), actions
 
     def detect_cdata_needed(self, text: str) -> bool:
         """
@@ -669,12 +688,13 @@ class XMLRepairEngine:
             # No attributes, just add xmlns
             return f"{tag_name} {' '.join(xmlns_decls)}"
 
-    def escape_entities(self, text: str) -> str:
+    def escape_entities(self, text: str) -> Tuple[str, bool]:
         """
         Escape special XML characters in text content.
 
         Escapes &, <, and > but avoids double-escaping already valid entity references.
         """
+        original_text = text
         # Pattern to match valid entity references
         # Matches: &lt; &gt; &amp; &quot; &apos; &#digits; &#xhex;
         import re
@@ -699,7 +719,7 @@ class XMLRepairEngine:
         for i, entity in enumerate(entities):
             text = text.replace(f"\x00ENTITY{i}\x00", entity)
 
-        return text
+        return text, text != original_text
 
     def escape_attribute_value(self, value: str, quote_char: str = '"') -> str:
         """
@@ -857,12 +877,10 @@ class XMLRepairEngine:
                     elif tag_content.endswith("/>"):
                         # Self-closing tag
                         tag_content_inner = tag_content[1:-2].strip()
-                        tag_content_inner = self.fix_malformed_attributes(tag_content_inner)
                         tokens.append(XMLToken("self_closing_tag", tag_content_inner, i))
                     else:
                         # Opening tag
                         tag_content_inner = tag_content[1:-1].strip()
-                        tag_content_inner = self.fix_malformed_attributes(tag_content_inner)
                         tag_name = (
                             tag_content_inner.split()[0]
                             if tag_content_inner.split()
@@ -874,7 +892,6 @@ class XMLRepairEngine:
                     # Incomplete tag (truncated) - include everything to end
                     tag_content_inner = xml_string[i + 1 :].strip()
                     if tag_content_inner:
-                        tag_content_inner = self.fix_malformed_attributes(tag_content_inner)
                         tag_name = (
                             tag_content_inner.split()[0]
                             if tag_content_inner.split()
@@ -900,13 +917,26 @@ class XMLRepairEngine:
 
         return tokens
 
-    def repair_xml(self, xml_string: str) -> str:
+    def repair_xml(self, xml_string: str) -> Tuple[str, "RepairReport"]:
+        # Instantiate report object to track repairs
+        report = RepairReport(
+            original_xml=xml_string,
+            repaired_xml="",  # This will be set at the end
+        )
+
         # Step 1: Preprocess invalid tag names & namespace syntax (single pass)
         # This must happen before extract_xml_content so the tokenizer can recognize the tags
-        xml_string = self.preprocessor.preprocess(xml_string)
+        xml_string, preprocess_actions = self.preprocessor.preprocess(xml_string)
+        if preprocess_actions:
+            report.actions.extend(preprocess_actions)
 
         # Step 2: Extract XML content from conversational fluff
         cleaned_xml = self.extract_xml_content(xml_string)
+        if len(cleaned_xml) < len(xml_string):
+            report.add_action(
+                RepairType.CONVERSATIONAL_FLUFF,
+                "Removed conversational fluff from document",
+            )
 
         # Step 1.6: Extract namespaces before tokenization
         namespaces = self.extract_namespaces(cleaned_xml)
@@ -942,7 +972,8 @@ class XMLRepairEngine:
                 result.append(self._wrap_in_cdata(combined_text))
             else:
                 # Escape entities normally
-                result.append(self.escape_entities(combined_text))
+                escaped_text, _ = self.escape_entities(combined_text)
+                result.append(escaped_text)
 
         while i < len(tokens):
             token = tokens[i]
@@ -950,6 +981,11 @@ class XMLRepairEngine:
             if token.type == "processing_instruction":
                 # Security: Skip dangerous processing instructions if enabled
                 if self.security_filter.should_strip_dangerous_pi(token.content):
+                    report.add_action(
+                        RepairType.DANGEROUS_PI_STRIPPED,
+                        "Removed dangerous processing instruction",
+                        before=token.content,
+                    )
                     # Skip this token - don't add to output
                     i += 1
                     continue
@@ -965,6 +1001,11 @@ class XMLRepairEngine:
 
                 # Security: Skip dangerous tags if enabled
                 if tag_name and self.security_filter.should_strip_dangerous_tag(tag_name):
+                    report.add_action(
+                        RepairType.DANGEROUS_TAG_STRIPPED,
+                        f"Removed dangerous tag <{tag_name}> but preserved its content",
+                        before=f"<{token.content}>",
+                    )
                     # Skip this tag but process content
                     dangerous_tag_stack.append((tag_name, tag_name.lower()))
                     if i + 1 < len(tokens) and tokens[i + 1].type == "tag_name":
@@ -972,13 +1013,18 @@ class XMLRepairEngine:
                     i += 1
                     continue
 
+                # Fix attributes and report
+                fixed_content, attr_actions = self.fix_malformed_attributes(token.content)
+                if attr_actions:
+                    report.actions.extend(attr_actions)
+
                 # Inject namespaces into first open tag (root element)
                 if first_open_tag and namespaces:
-                    updated_content = self.inject_namespace_declarations(token.content, namespaces)
+                    updated_content = self.inject_namespace_declarations(fixed_content, namespaces)
                     result.append(f"<{updated_content}>")
                     first_open_tag = False
                 else:
-                    result.append(f"<{token.content}>")
+                    result.append(f"<{fixed_content}>")
                     first_open_tag = False
 
                 if tag_name:
@@ -1024,6 +1070,22 @@ class XMLRepairEngine:
                     while len(tag_stack) > stack_index:
                         tags_to_close.append(tag_stack.pop()[0])
 
+                    if distance > 0:
+                        report.add_action(
+                            RepairType.TAG_TYPO,
+                            f"Corrected closing tag typo '</{token.content}>' to '</{tags_to_close[-1]}>'",
+                            before=f"</{token.content}>",
+                            after=f"</{tags_to_close[-1]}>",
+                        )
+
+                    if len(tags_to_close) > 1:
+                        closed_tags_str = "".join([f"</{t}>" for t in tags_to_close])
+                        report.add_action(
+                            RepairType.TRUNCATION,
+                            f"Closed {len(tags_to_close) - 1} unclosed parent tags due to mismatched tag correction",
+                            after=closed_tags_str,
+                        )
+
                     # Output all the closing tags
                     for tag in tags_to_close:
                         result.append(f"</{tag}>")
@@ -1033,17 +1095,25 @@ class XMLRepairEngine:
                     result.append(f"</{token.content}>")
             elif token.type == "self_closing_tag":
                 flush_text_buffer()
-                result.append(f"<{token.content}/>")
+                fixed_content, attr_actions = self.fix_malformed_attributes(token.content)
+                if attr_actions:
+                    report.actions.extend(attr_actions)
+                result.append(f"<{fixed_content}/>")
             elif token.type == "incomplete_tag":
                 flush_text_buffer()
+
+                fixed_content, attr_actions = self.fix_malformed_attributes(token.content)
+                if attr_actions:
+                    report.actions.extend(attr_actions)
+
                 # Handle truncated tags
                 # Inject namespaces into first tag if needed
                 if first_open_tag and namespaces:
-                    updated_content = self.inject_namespace_declarations(token.content, namespaces)
+                    updated_content = self.inject_namespace_declarations(fixed_content, namespaces)
                     result.append(f"<{updated_content}>")
                     first_open_tag = False
                 else:
-                    result.append(f"<{token.content}>")
+                    result.append(f"<{fixed_content}>")
                     first_open_tag = False
 
                 if i + 1 < len(tokens) and tokens[i + 1].type == "tag_name":
@@ -1057,7 +1127,14 @@ class XMLRepairEngine:
                 if in_cdata_candidate and self.auto_wrap_cdata:
                     text_buffer.append(token.content)
                 else:
-                    escaped_text = self.escape_entities(token.content)
+                    escaped_text, was_changed = self.escape_entities(token.content)
+                    if was_changed:
+                        report.add_action(
+                            RepairType.UNESCAPED_ENTITY,
+                            "Escaped special characters in text content",
+                            before=token.content,
+                            after=escaped_text,
+                        )
                     result.append(escaped_text)
             elif token.type == "whitespace":
                 # Buffer whitespace if we're collecting CDATA content
@@ -1082,6 +1159,15 @@ class XMLRepairEngine:
         flush_text_buffer()
 
         # Step 4: Close any remaining open tags
+        if tag_stack:
+            # Create a description of the tags being closed for the report
+            tags_to_close_str = "".join([f"</{tag[0]}>" for tag in reversed(tag_stack)])
+            report.add_action(
+                RepairType.TRUNCATION,
+                f"Added {len(tag_stack)} missing closing tags due to document truncation.",
+                location="end of document",
+                after=tags_to_close_str,
+            )
         while tag_stack:
             tag_name = tag_stack.pop()[0]  # Use original case
             result.append(f"</{tag_name}>")
@@ -1092,7 +1178,8 @@ class XMLRepairEngine:
         if self.wrap_multiple_roots:
             repaired = self._wrap_multiple_roots(repaired)
 
-        return repaired
+        report.repaired_xml = repaired
+        return repaired, report
 
     def _wrap_multiple_roots(self, xml_string: str) -> str:
         """
@@ -1170,7 +1257,7 @@ class XMLRepairEngine:
 
     def xml_to_dict(self, xml_string: str) -> Dict[str, Any]:
         # Simple XML to dict converter
-        repaired_xml = self.repair_xml(xml_string)
+        repaired_xml, _ = self.repair_xml(xml_string)
         return self._parse_xml_to_dict(repaired_xml)
 
     def _parse_xml_to_dict(self, xml_string: str) -> Dict[str, Any]:

@@ -114,8 +114,8 @@ class TestEntityEscaping:
         """Test using XMLRepairEngine directly."""
         engine = XMLRepairEngine()
         xml = "<root>R&D</root>"
-        result = engine.repair_xml(xml)
-        assert "&amp;D" in result
+        repaired_xml, _ = engine.repair_xml(xml)
+        assert "&amp;D" in repaired_xml
 
     def test_apostrophe_entity(self):
         """Test apostrophe entity preservation."""

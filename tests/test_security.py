@@ -147,10 +147,10 @@ class TestSecurityFeatures:
             strip_dangerous_pis=True, strip_external_entities=True, strip_dangerous_tags=True
         )
         xml = "<?php hack ?><root><script>XSS</script></root>"
-        result = engine.repair_xml(xml)
-        assert "<?php" not in result
-        assert "<script>" not in result
-        assert "<root>" in result
+        repaired_xml, _ = engine.repair_xml(xml)
+        assert "<?php" not in repaired_xml
+        assert "<script>" not in repaired_xml
+        assert "<root>" in repaired_xml
 
     def test_is_dangerous_pi_method(self):
         """Test the is_dangerous_pi helper method."""
@@ -317,13 +317,13 @@ class TestTrustLevelEnforcement:
 
         # UNTRUSTED engine
         untrusted_engine = XMLRepairEngine.from_trust_level(TrustLevel.UNTRUSTED)
-        result_untrusted = untrusted_engine.repair_xml(dangerous_xml)
+        result_untrusted, _ = untrusted_engine.repair_xml(dangerous_xml)
         assert "<?php" not in result_untrusted
         assert "<script>" not in result_untrusted.lower()
 
         # TRUSTED engine
         trusted_engine = XMLRepairEngine.from_trust_level(TrustLevel.TRUSTED)
-        result_trusted = trusted_engine.repair_xml(dangerous_xml)
+        result_trusted, _ = trusted_engine.repair_xml(dangerous_xml)
         assert "<?php" in result_trusted
         assert "<script>" in result_trusted
 

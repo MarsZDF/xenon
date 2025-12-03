@@ -91,8 +91,8 @@ class TestNamespaceValidation:
         """Test using XMLRepairEngine directly."""
         engine = XMLRepairEngine(fix_namespace_syntax=True)
         xml = "<bad::ns>data</bad::ns>"
-        result = engine.repair_xml(xml)
-        assert result == "<bad_ns>data</bad_ns>"
+        repaired_xml, _ = engine.repair_xml(xml)
+        assert repaired_xml == "<bad_ns>data</bad_ns>"
 
     def test_combined_with_other_features(self):
         """Test namespace fixing with other repair features."""

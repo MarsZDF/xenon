@@ -104,8 +104,8 @@ class TestInvalidTagNames:
         """Test using XMLRepairEngine directly with sanitize_invalid_tags."""
         engine = XMLRepairEngine(sanitize_invalid_tags=True)
         xml = "<123illegal>data</123illegal>"
-        result = engine.repair_xml(xml)
-        assert "<tag_123illegal>data</tag_123illegal>" == result
+        repaired_xml, _ = engine.repair_xml(xml)
+        assert "<tag_123illegal>data</tag_123illegal>" == repaired_xml
 
     def test_combined_with_other_features(self):
         """Test sanitize_invalid_tags with other repair features."""

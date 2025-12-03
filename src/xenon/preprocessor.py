@@ -1,9 +1,10 @@
 """XML preprocessing component for tag and namespace fixes."""
 
 import re
-from typing import Dict, Match, Tuple
+from typing import Dict, List, Match, Tuple
 
 from .config import RepairFlags, XMLRepairConfig
+from .reporting import RepairAction, RepairType
 
 
 class XMLPreprocessor:
@@ -23,7 +24,7 @@ class XMLPreprocessor:
         self.config = config
         self.tag_name_map: Dict[str, str] = {}  # Cache for sanitized names
 
-    def preprocess(self, xml_string: str) -> str:
+    def preprocess(self, xml_string: str) -> Tuple[str, List["RepairAction"]]:
         """
         Apply all enabled preprocessing transformations in a single pass.
 
@@ -33,10 +34,10 @@ class XMLPreprocessor:
             xml_string: XML to preprocess
 
         Returns:
-            Preprocessed XML string
+            Preprocessed XML string and a list of actions taken.
         """
         if not self._needs_preprocessing():
-            return xml_string
+            return xml_string, []
 
         return self._single_pass_transform(xml_string)
 
@@ -46,12 +47,13 @@ class XMLPreprocessor:
             RepairFlags.SANITIZE_INVALID_TAGS
         ) or self.config.has_repair_feature(RepairFlags.FIX_NAMESPACE_SYNTAX)
 
-    def _single_pass_transform(self, xml_string: str) -> str:
+    def _single_pass_transform(self, xml_string: str) -> Tuple[str, List["RepairAction"]]:
         """
         Single-pass transformation applying all enabled fixes.
 
         This is much more efficient than multiple regex passes.
         """
+        actions: List[RepairAction] = []
         tag_pattern = r"<(/?)([^>]+?)(/?)>"
 
         def transform_tag(match: Match[str]) -> str:
@@ -64,28 +66,48 @@ class XMLPreprocessor:
 
             # Extract tag name and attributes
             tag_name, rest = self._extract_tag_name(inner_content)
-
-            # Apply transformations in order
-            fixed_name = tag_name
+            original_name = tag_name
+            current_name = tag_name
 
             # 1. Fix namespace syntax (if enabled)
             if self.config.has_repair_feature(RepairFlags.FIX_NAMESPACE_SYNTAX):
-                fixed_name = self._fix_namespace_syntax(fixed_name)
+                fixed_ns_name = self._fix_namespace_syntax(current_name)
+                if fixed_ns_name != current_name:
+                    actions.append(
+                        RepairAction(
+                            repair_type=RepairType.INVALID_NAMESPACE,
+                            description=f"Fixed invalid namespace syntax in tag '{current_name}'",
+                            before=current_name,
+                            after=fixed_ns_name,
+                        )
+                    )
+                    current_name = fixed_ns_name
 
             # 2. Sanitize invalid tag names (if enabled)
             if self.config.has_repair_feature(RepairFlags.SANITIZE_INVALID_TAGS):
-                fixed_name = self._sanitize_tag_name(fixed_name)
+                sanitized_name = self._sanitize_tag_name(current_name)
+                if sanitized_name != current_name:
+                    actions.append(
+                        RepairAction(
+                            repair_type=RepairType.INVALID_TAG_NAME,
+                            description=f"Sanitized invalid tag name '{current_name}'",
+                            before=current_name,
+                            after=sanitized_name,
+                        )
+                    )
+                    current_name = sanitized_name
 
             # Rebuild tag if name was changed
-            if fixed_name != tag_name:
+            if current_name != original_name:
                 if rest:
-                    return f"<{slash}{fixed_name} {rest.lstrip()}{self_closing}>"
+                    return f"<{slash}{current_name} {rest.lstrip()}{self_closing}>"
                 else:
-                    return f"<{slash}{fixed_name}{self_closing}>"
+                    return f"<{slash}{current_name}{self_closing}>"
 
             return match.group(0)
 
-        return re.sub(tag_pattern, transform_tag, xml_string)
+        result = re.sub(tag_pattern, transform_tag, xml_string)
+        return result, actions
 
     def _extract_tag_name(self, inner_content: str) -> Tuple[str, str]:
         """

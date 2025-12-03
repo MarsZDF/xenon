@@ -89,9 +89,9 @@ class TestMultipleRoots:
         """Test using XMLRepairEngine directly with wrap_multiple_roots."""
         engine = XMLRepairEngine(wrap_multiple_roots=True)
         xml = "<a>1</a><b>2</b>"
-        result = engine.repair_xml(xml)
-        assert "<document>" in result
-        assert "<a>1</a><b>2</b></document>" in result
+        repaired_xml, _ = engine.repair_xml(xml)
+        assert "<document>" in repaired_xml
+        assert "<a>1</a><b>2</b></document>" in repaired_xml
 
     def test_malformed_with_multiple_roots(self):
         """Test repairing malformed XML with multiple roots."""

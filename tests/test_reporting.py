@@ -172,12 +172,8 @@ class TestRepairXMLWithReport:
         result, report = repair_xml_with_report(xml, trust=TrustLevel.TRUSTED)
 
         assert "&amp;" in result
-
-        # May detect entity escaping
-        types = [a.repair_type for a in report.actions]
-        # Entity escaping is detected if &amp; appears in output but not input
-        if "&amp;" in result and "&amp;" not in xml:
-            assert RepairType.UNESCAPED_ENTITY in types
+        assert len(report.actions) == 1
+        assert report.actions[0].repair_type == RepairType.UNESCAPED_ENTITY
 
     def test_attribute_repair(self):
         """Test attribute repair detection."""
@@ -185,11 +181,8 @@ class TestRepairXMLWithReport:
         result, report = repair_xml_with_report(xml, trust=TrustLevel.TRUSTED)
 
         assert 'name="john"' in result
-
-        # Check that attribute fix was detected
-        if 'name="' in result and 'name="' not in xml:
-            types = [a.repair_type for a in report.actions]
-            assert RepairType.MALFORMED_ATTRIBUTE in types
+        assert len(report.actions) == 1
+        assert report.actions[0].repair_type == RepairType.MALFORMED_ATTRIBUTE
 
     def test_multiple_repairs(self):
         """Test multiple repairs in one document."""
@@ -219,18 +212,6 @@ class TestRepairXMLWithReport:
         assert "actions" in data
         assert "statistics" in data
 
-    def test_cdata_detection(self):
-        """Test CDATA wrapping detection."""
-        # This is speculative - CDATA wrapping may or may not be implemented
-        # The test is here to verify if it works when implemented
-        xml = "<code>if (x < 5) { return true; }</code>"
-        result, report = repair_xml_with_report(xml, trust=TrustLevel.TRUSTED)
-
-        # If CDATA was added, it should be detected
-        if "<![CDATA[" in result and "<![CDATA[" not in xml:
-            types = [a.repair_type for a in report.actions]
-            assert RepairType.CDATA_WRAPPED in types
-
     def test_report_is_truthy_when_repairs_made(self):
         """Test that report evaluates to True when repairs were made."""
         xml = "<root><item>Hello"
@@ -251,3 +232,23 @@ class TestRepairXMLWithReport:
         assert stats["total_repairs"] == len(report)
         assert stats["input_size"] == len(xml)
         assert stats["output_size"] == len(result)
+
+    def test_complex_report_accuracy(self):
+        """Test a complex scenario with multiple, specific repairs."""
+        xml = "Here is the XML: <?php echo 'XSS'; ?><root><item name=john>data"
+        # This XML has:
+        # 1. Conversational fluff at the start.
+        # 2. A dangerous PHP processing instruction.
+        # 3. An unquoted attribute.
+        # 4. Truncation (missing closing tags for item and root).
+
+        result, report = repair_xml_with_report(xml, trust=TrustLevel.UNTRUSTED)
+
+        assert len(report.actions) == 4
+
+        action_types = {action.repair_type for action in report.actions}
+
+        assert RepairType.CONVERSATIONAL_FLUFF in action_types
+        assert RepairType.DANGEROUS_PI_STRIPPED in action_types
+        assert RepairType.MALFORMED_ATTRIBUTE in action_types
+        assert RepairType.TRUNCATION in action_types
