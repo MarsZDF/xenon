@@ -6,6 +6,7 @@ catching common errors early with helpful error messages.
 """
 
 from typing import Any, Optional
+from io import StringIO
 
 from .exceptions import ValidationError
 
@@ -110,3 +111,47 @@ def validate_repaired_output(repaired: str, original: str) -> None:
     # Note: We intentionally don't validate full XML spec compliance here
     # because that would require xml.etree.ElementTree, adding a dependency
     # Users can optionally do their own validation with ET if needed
+
+def validate_with_schema(xml_string: str, schema_content: str) -> None:
+    """
+    Validate an XML string against a given schema (XSD or DTD).
+
+    This function requires the `lxml` library to be installed.
+
+    Args:
+        xml_string: The XML string to validate.
+        schema_content: The content of the schema (XSD or DTD) as a string.
+
+    Raises:
+        ImportError: If `lxml` is not installed.
+        ValidationError: If the XML is not valid according to the schema.
+    """
+    try:
+        from lxml import etree
+    except ImportError:
+        raise ImportError(
+            "Schema validation requires the 'lxml' library. "
+            "Please install it using 'pip install lxml'."
+        )
+
+    try:
+        # Parse the XML
+        xml_doc = etree.fromstring(xml_string.encode('utf-8'))
+
+        if schema_content.strip().startswith("<!DOCTYPE") or schema_content.strip().startswith("<!ELEMENT"):
+            # Assume DTD
+            dtd = etree.DTD(StringIO(schema_content))
+            if not dtd.validate(xml_doc):
+                errors = "\n".join([str(error) for error in dtd.error_log])
+                raise ValidationError(f"DTD validation failed:\n{errors}")
+        else:
+            # Assume XSD
+            schema_doc = etree.fromstring(schema_content.encode('utf-8'))
+            schema = etree.XMLSchema(schema_doc)
+            schema.assertValid(xml_doc)
+
+    except etree.XMLSyntaxError as e:
+        raise ValidationError(f"Invalid XML or schema: {e}")
+    except etree.DocumentInvalid as e:
+        errors = "\n".join([str(error) for error in e.error_log])
+        raise ValidationError(f"Schema validation failed:\n{errors}")

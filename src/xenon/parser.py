@@ -46,11 +46,13 @@ class XMLRepairEngine:
         strip_dangerous_pis: bool = False,
         strip_external_entities: bool = False,
         strip_dangerous_tags: bool = False,
+        escape_unsafe_attributes: bool = False,
         wrap_multiple_roots: bool = False,
         sanitize_invalid_tags: bool = False,
         fix_namespace_syntax: bool = False,
         auto_wrap_cdata: bool = False,
         max_depth: Optional[int] = None,
+        schema_content: Optional[str] = None,
     ):
         """
         Initialize XML repair engine.
@@ -68,6 +70,8 @@ class XMLRepairEngine:
                                     Default False for backward compatibility.
             strip_dangerous_tags: Strip potentially dangerous tags (script, iframe, object, embed).
                                  Default False for backward compatibility.
+            escape_unsafe_attributes: Aggressively escape attribute values to prevent XSS.
+                                     Default False for backward compatibility.
             wrap_multiple_roots: Wrap multiple root elements in synthetic <document> root.
                                 Default False for backward compatibility.
             sanitize_invalid_tags: Fix invalid XML tag names (e.g., <123> → <tag_123>).
@@ -80,6 +84,7 @@ class XMLRepairEngine:
             max_depth: Maximum XML nesting depth allowed. Prevents DoS attacks via deeply nested XML.
                       None = unlimited (default for backward compatibility).
                       Recommended: 1000 for untrusted input, 10000 for internal use.
+            schema_content: Content of the schema (XSD or DTD) for post-repair validation.
 
         Examples:
             >>> # Using config object (recommended)
@@ -100,10 +105,12 @@ class XMLRepairEngine:
                 strip_dangerous_pis=strip_dangerous_pis,
                 strip_external_entities=strip_external_entities,
                 strip_dangerous_tags=strip_dangerous_tags,
+                escape_unsafe_attributes=escape_unsafe_attributes,
                 wrap_multiple_roots=wrap_multiple_roots,
                 sanitize_invalid_tags=sanitize_invalid_tags,
                 fix_namespace_syntax=fix_namespace_syntax,
                 auto_wrap_cdata=auto_wrap_cdata,
+                schema_content=schema_content,
             )
 
         self.config = config
@@ -121,10 +128,14 @@ class XMLRepairEngine:
             SecurityFlags.STRIP_EXTERNAL_ENTITIES
         )
         self.strip_dangerous_tags = config.has_security_feature(SecurityFlags.STRIP_DANGEROUS_TAGS)
+        self.escape_unsafe_attributes = config.has_security_feature(
+            SecurityFlags.ESCAPE_UNSAFE_ATTRIBUTES
+        )
         self.wrap_multiple_roots = config.has_repair_feature(RepairFlags.WRAP_MULTIPLE_ROOTS)
         self.sanitize_invalid_tags = config.has_repair_feature(RepairFlags.SANITIZE_INVALID_TAGS)
         self.fix_namespace_syntax = config.has_repair_feature(RepairFlags.FIX_NAMESPACE_SYNTAX)
         self.auto_wrap_cdata = config.has_repair_feature(RepairFlags.AUTO_WRAP_CDATA)
+        self.schema_content = config.schema_content
 
         # Tags that commonly contain code or special characters
         self.CDATA_CANDIDATE_TAGS = {
@@ -176,7 +187,9 @@ class XMLRepairEngine:
             strip_dangerous_pis=config_obj.strip_dangerous_pis,
             strip_external_entities=config_obj.strip_external_entities,
             strip_dangerous_tags=config_obj.strip_dangerous_tags,
+            escape_unsafe_attributes=config_obj.escape_unsafe_attributes,
             max_depth=config_obj.max_depth,
+            schema_content=None, # from_trust_level doesn't provide a schema content by default
         )
 
     def _is_cdata_candidate_tag(self, tag_name: str) -> bool:
@@ -532,7 +545,9 @@ class XMLRepairEngine:
                 if i < len(content):
                     i += 1  # Skip the closing quote
                 # Escape the value and add with quotes
-                escaped_value = self.escape_attribute_value(value, quote_char)
+                escaped_value = self.escape_attribute_value(
+                    value, quote_char, aggressive_escape=self.escape_unsafe_attributes
+                )
                 result.append(f" {attr_name}={quote_char}{escaped_value}{quote_char}")
             else:
                 # Unquoted value, collect until next attribute or end
@@ -559,7 +574,9 @@ class XMLRepairEngine:
 
                 value = content[value_start:i].strip()
                 # Report this action
-                escaped_value = self.escape_attribute_value(value, '"')
+                escaped_value = self.escape_attribute_value(
+                    value, '"', aggressive_escape=self.escape_unsafe_attributes
+                )
                 actions.append(
                     RepairAction(
                         repair_type=RepairType.MALFORMED_ATTRIBUTE,
@@ -688,7 +705,7 @@ class XMLRepairEngine:
             # No attributes, just add xmlns
             return f"{tag_name} {' '.join(xmlns_decls)}"
 
-    def escape_entities(self, text: str) -> Tuple[str, bool]:
+    def escape_entities(self, text: str, aggressive_escape: bool = False) -> Tuple[str, bool]:
         """
         Escape special XML characters in text content.
 
@@ -715,13 +732,23 @@ class XMLRepairEngine:
         text = text.replace("<", "&lt;")
         text = text.replace(">", "&gt;")
 
+        if aggressive_escape:
+            text = text.replace("'", "&apos;")
+            text = text.replace("/", "&#x2F;")
+            text = text.replace(" ", "&#x20;")
+            text = text.replace("\t", "&#x09;")
+            text = text.replace("\n", "&#x0A;")
+            text = text.replace("\r", "&#x0D;")
+
         # Restore the valid entities
         for i, entity in enumerate(entities):
             text = text.replace(f"\x00ENTITY{i}\x00", entity)
 
         return text, text != original_text
 
-    def escape_attribute_value(self, value: str, quote_char: str = '"') -> str:
+    def escape_attribute_value(
+        self, value: str, quote_char: str = '"', aggressive_escape: bool = False
+    ) -> str:
         """
         Escape special characters in attribute values.
 
@@ -747,11 +774,20 @@ class XMLRepairEngine:
         value = value.replace("<", "&lt;")
         value = value.replace(">", "&gt;")
 
-        # Escape the quote character being used
-        if quote_char == '"':
-            value = value.replace('"', "&quot;")
-        else:  # single quote
+        if aggressive_escape:
             value = value.replace("'", "&apos;")
+            value = value.replace('"', "&quot;")
+            value = value.replace("/", "&#x2F;")
+            value = value.replace(" ", "&#x20;")
+            value = value.replace("\t", "&#x09;")
+            value = value.replace("\n", "&#x0A;")
+            value = value.replace("\r", "&#x0D;")
+        else:
+            # Escape the quote character being used
+            if quote_char == '"':
+                value = value.replace('"', "&quot;")
+            else:  # single quote
+                value = value.replace("'", "&apos;")
 
         # Restore the valid entities
         for i, entity in enumerate(entities):
@@ -972,7 +1008,9 @@ class XMLRepairEngine:
                 result.append(self._wrap_in_cdata(combined_text))
             else:
                 # Escape entities normally
-                escaped_text, _ = self.escape_entities(combined_text)
+                escaped_text, _ = self.escape_entities(
+                    combined_text, aggressive_escape=self.escape_unsafe_attributes
+                )
                 result.append(escaped_text)
 
         while i < len(tokens):
@@ -1127,7 +1165,9 @@ class XMLRepairEngine:
                 if in_cdata_candidate and self.auto_wrap_cdata:
                     text_buffer.append(token.content)
                 else:
-                    escaped_text, was_changed = self.escape_entities(token.content)
+                    escaped_text, was_changed = self.escape_entities(
+                        token.content, aggressive_escape=self.escape_unsafe_attributes
+                    )
                     if was_changed:
                         report.add_action(
                             RepairType.UNESCAPED_ENTITY,

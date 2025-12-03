@@ -107,9 +107,11 @@ class SecurityConfig:
     strip_dangerous_pis: bool
     strip_external_entities: bool
     strip_dangerous_tags: bool
+    escape_unsafe_attributes: bool
     max_depth: Optional[int]
     strict: bool
     audit_threats: bool
+    validate_output_schema: bool = False
     audit_logger: Optional["AuditLogger"] = None
     metrics: Optional["SecurityMetrics"] = None
 
@@ -120,9 +122,11 @@ class SecurityConfig:
             f"strip_pis={self.strip_dangerous_pis}, "
             f"strip_entities={self.strip_external_entities}, "
             f"strip_tags={self.strip_dangerous_tags}, "
+            f"escape_unsafe_attributes={self.escape_unsafe_attributes}, "
             f"max_depth={self.max_depth}, "
             f"strict={self.strict}, "
-            f"audit={self.audit_threats})"
+            f"audit={self.audit_threats}, "
+            f"validate_output_schema={self.validate_output_schema})"
         )
 
 
@@ -132,9 +136,11 @@ def get_security_config(
     strip_dangerous_pis: Optional[bool] = None,
     strip_external_entities: Optional[bool] = None,
     strip_dangerous_tags: Optional[bool] = None,
+    escape_unsafe_attributes: Optional[bool] = None,
     max_depth: Optional[int] = None,
     strict: Optional[bool] = None,
     audit_threats: Optional[bool] = None,
+    validate_output_schema: Optional[bool] = None,
 ) -> SecurityConfig:
     """
     Get security configuration for a trust level.
@@ -147,6 +153,7 @@ def get_security_config(
         max_depth: Override default max nesting depth
         strict: Override default strict validation
         audit_threats: Override default threat auditing
+        validate_output_schema: Override default schema validation for output
 
     Returns:
         SecurityConfig with appropriate settings
@@ -172,9 +179,11 @@ def get_security_config(
             strip_dangerous_pis=True,
             strip_external_entities=True,
             strip_dangerous_tags=True,
+            escape_unsafe_attributes=True,
             max_depth=1000,
             strict=True,
             audit_threats=True,
+            validate_output_schema=True,
         )
     elif trust == TrustLevel.INTERNAL:
         defaults = SecurityConfig(
@@ -182,9 +191,11 @@ def get_security_config(
             strip_dangerous_pis=False,
             strip_external_entities=True,  # Defense in depth
             strip_dangerous_tags=False,
+            escape_unsafe_attributes=False,
             max_depth=10000,
             strict=False,
             audit_threats=False,
+            validate_output_schema=False,
         )
     else:  # TRUSTED
         defaults = SecurityConfig(
@@ -192,9 +203,11 @@ def get_security_config(
             strip_dangerous_pis=False,
             strip_external_entities=False,
             strip_dangerous_tags=False,
+            escape_unsafe_attributes=False,
             max_depth=None,
             strict=False,
             audit_threats=False,
+            validate_output_schema=False,
         )
 
     # Apply overrides
@@ -204,12 +217,16 @@ def get_security_config(
         defaults.strip_external_entities = strip_external_entities
     if strip_dangerous_tags is not None:
         defaults.strip_dangerous_tags = strip_dangerous_tags
+    if escape_unsafe_attributes is not None:
+        defaults.escape_unsafe_attributes = escape_unsafe_attributes
     if max_depth is not None:
         defaults.max_depth = max_depth
     if strict is not None:
         defaults.strict = strict
     if audit_threats is not None:
         defaults.audit_threats = audit_threats
+    if validate_output_schema is not None:
+        defaults.validate_output_schema = validate_output_schema
 
     return defaults
 

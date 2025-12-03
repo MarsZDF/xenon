@@ -188,7 +188,9 @@ def repair_xml_safe(
     strip_dangerous_pis: Optional[bool] = None,
     strip_external_entities: Optional[bool] = None,
     strip_dangerous_tags: Optional[bool] = None,
+    escape_unsafe_attributes: Optional[bool] = None,
     max_depth: Optional[int] = None,
+    validate_output_schema: Optional[bool] = None,
     # Repair features
     wrap_multiple_roots: bool = False,
     sanitize_invalid_tags: bool = False,
@@ -198,6 +200,8 @@ def repair_xml_safe(
     format_output: Optional[FormatStyle] = None,
     html_entities: Optional[str] = None,
     normalize_unicode: bool = False,
+    # Schema validation
+    schema_content: Optional[str] = None,
 ) -> str:
     """
     Safely repair XML with security appropriate to trust level.
@@ -216,7 +220,9 @@ def repair_xml_safe(
             strip_dangerous_pis: Strip processing instructions (PHP, ASP, JSP)
             strip_external_entities: Strip external entities (XXE prevention)
             strip_dangerous_tags: Strip dangerous tags (script, iframe, etc.)
+            escape_unsafe_attributes: Aggressively escape attribute values to prevent XSS.
             max_depth: Maximum nesting depth (DoS prevention)
+            validate_output_schema: If True, validate repaired output against a schema.
 
         Repair features:
             wrap_multiple_roots: Wrap multiple roots in <document>
@@ -228,6 +234,9 @@ def repair_xml_safe(
             format_output: Output formatting - 'pretty', 'compact', 'minify', or None
             html_entities: HTML entity handling - 'numeric', 'unicode', or None
             normalize_unicode: Apply Unicode NFC normalization
+        
+        Schema validation:
+            schema_content: The content of the schema (XSD or DTD) as a string.
 
     Returns:
         Repaired XML string
@@ -293,8 +302,10 @@ def repair_xml_safe(
         strip_dangerous_pis=strip_dangerous_pis,
         strip_external_entities=strip_external_entities,
         strip_dangerous_tags=strip_dangerous_tags,
+        escape_unsafe_attributes=escape_unsafe_attributes,
         max_depth=max_depth,
         strict=strict,
+        validate_output_schema=validate_output_schema,
     )
 
     # Step 4: Attempt repair with error handling
@@ -304,11 +315,13 @@ def repair_xml_safe(
             strip_dangerous_pis=security_config.strip_dangerous_pis,
             strip_external_entities=security_config.strip_external_entities,
             strip_dangerous_tags=security_config.strip_dangerous_tags,
+            escape_unsafe_attributes=security_config.escape_unsafe_attributes,
             max_depth=security_config.max_depth,
             wrap_multiple_roots=wrap_multiple_roots,
             sanitize_invalid_tags=sanitize_invalid_tags,
             fix_namespace_syntax=fix_namespace_syntax,
             auto_wrap_cdata=auto_wrap_cdata,
+            schema_content=schema_content,
         )
         result, _ = custom_engine.repair_xml(xml_string)
 
@@ -319,6 +332,11 @@ def repair_xml_safe(
         # Step 6: Validate output if in strict mode
         if security_config.strict:
             validate_repaired_output(result, xml_string)
+
+        # Step 7: Apply schema validation if requested
+        if schema_content and security_config.validate_output_schema:
+            from .validation import validate_with_schema
+            validate_with_schema(result, schema_content)
 
         return result
 

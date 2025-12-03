@@ -38,7 +38,11 @@ It is a secure-by-default, zero-dependency library designed to be the fastest an
 
 ## Features
 
-- **🔒 v1.0.0**: Secure-by-default with explicit trust levels (BREAKING CHANGES - see below)
+
+
+- **🔒 v1.0.0**: Secure-by-default with explicit trust levels, **enhanced XSS protection**, and optional schema/DTD validation (BREAKING CHANGES - see below)
+
+
 
 - **Zero Dependencies**: Uses only Python Standard Library
 
@@ -94,7 +98,7 @@ Choose the trust level based on your input source:
 
 | Trust Level | Use For | Security Features | Performance |
 |-------------|---------|-------------------|-------------|
-| **`UNTRUSTED`** | LLM output, user uploads, external APIs | 🔒 All protections enabled | ~15-20% slower |
+| **`UNTRUSTED`** | LLM output, user uploads, external APIs | 🔒 All protections enabled, **Optional schema/DTD validation** | ~15-20% slower |
 | **`INTERNAL`** | Internal services, config files, database exports | 🔐 Moderate protections | ~5% slower |
 | **`TRUSTED`** | Hardcoded literals, test fixtures, known-good data | ⚡ No security overhead | Fastest (baseline) |
 
@@ -151,9 +155,11 @@ StreamingXMLRepair(trust=TrustLevel.UNTRUSTED)
 - ✅ Strip dangerous processing instructions (PHP, ASP, JSP)
 - ✅ Strip external entities (XXE prevention)
 - ✅ Strip dangerous tags (script, iframe, object, embed)
+- ✅ Enhanced XSS protection (aggressive attribute and text node escaping)
 - ✅ Max depth limit: 1000 (DoS prevention)
 - ✅ Strict validation
 - ✅ Threat auditing
+- ✅ Schema validation (if schema provided)
 
 **INTERNAL** level enables:
 - ✅ Strip external entities (defense in depth)
@@ -176,6 +182,7 @@ StreamingXMLRepair(trust=TrustLevel.UNTRUSTED)
 - ✓ Strip dangerous processing instructions (PHP, ASP, JSP)
 - ✓ Strip external entity declarations (XXE prevention)
 - ✓ Strip dangerous tags (script, iframe, object, embed)
+- ✓ Enhanced XSS Protection (aggressive attribute and text node escaping)
 - ✓ Limit nesting depth (DoS prevention)
 - ✓ Validate output structure
 
@@ -192,7 +199,7 @@ See [SECURITY.md](SECURITY.md) for detailed threat model and best practices.
 ## Quick Start
 
 ```python
-from xenon import repair_xml_safe, parse_xml_safe, TrustLevel
+from xenon import repair_xml_safe, parse_xml_safe, TrustLevel, ValidationError
 
 # Repair malformed LLM output
 llm_output = 'Sure, here is the XML: <root><user name=john'
@@ -205,7 +212,32 @@ print(result)    # {'root': {'user': {'@attributes': {'name': 'john'}}}}
 
 # For test fixtures (no security overhead)
 TEST_XML = '<root><item>test</item></root>'
-result = repair_xml_safe(TEST_XML, trust=TrustLevel.TRUSTED)
+repaired = repair_xml_safe(TEST_XML, trust=TrustLevel.TRUSTED)
+
+# Example: Schema Validation
+# Define a simple XSD schema
+XSD_SCHEMA = """<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:element name="root">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="item" type="xs:string"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>"""
+
+# Valid XML against schema
+valid_xml = "<root><item>data</item></root>"
+repaired_and_validated = repair_xml_safe(valid_xml, trust=TrustLevel.UNTRUSTED, schema_content=XSD_SCHEMA)
+print(f"Valid XML after repair and validation: {repaired_and_validated}")
+
+# Invalid XML against schema - will raise ValidationError
+invalid_xml = "<root><wrong_item>data</wrong_item></root>"
+try:
+    repair_xml_safe(invalid_xml, trust=TrustLevel.UNTRUSTED, schema_content=XSD_SCHEMA)
+except ValidationError as e:
+    print(f"Caught validation error for invalid XML: {e}")
 ```
 
 ## What's New in v0.6.0 🆕
@@ -889,6 +921,8 @@ except XenonException as e:
 - `format_output` (str): Output format - 'pretty', 'compact', 'minify' (default: None)
 - `html_entities` (str): HTML entity handling - 'numeric', 'preserve' (default: None)
 - `normalize_unicode` (bool): Apply Unicode normalization (default: False)
+- `schema_content` (str): Content of the schema (XSD or DTD) for post-repair validation (default: None)
+- `validate_output_schema` (bool): If True, validate repaired XML against `schema_content` (default: False, but True for UNTRUSTED if schema_content is provided)
 - Override security flags (use with caution):
   - `strip_dangerous_pis` (bool): Override trust level default
   - `strip_external_entities` (bool): Override trust level default
@@ -1124,7 +1158,7 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## Version History
 
-- **v1.0.0** (2025-12-03): 🔒 **BREAKING CHANGES** - Secure-by-default with mandatory trust levels, SecurityError exception, streaming security filtering, XMLRepairEngine.from_trust_level() factory method. [See migration guide above](#-v100-secure-by-default-breaking-changes)
+- **v1.0.0** (2025-12-03): 🔒 **BREAKING CHANGES** - Secure-by-default with mandatory trust levels, SecurityError exception, streaming security filtering, XMLRepairEngine.from_trust_level() factory method, **optional schema/DTD validation**, and enhanced XSS protection. [See migration guide above](#-v100-secure-by-default-breaking-changes)
 - **v0.7.0** (2025-12-02): Real-time streaming XML repair for LLM token-by-token output
 - **v0.6.0** (2025-12-01): Diff reporting, XML formatting, HTML entities, encoding detection, enhanced errors
 - **v0.5.0** (2025-11-29): XML compliance features, configuration API, architectural refactoring

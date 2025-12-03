@@ -3,7 +3,7 @@
 import pytest
 
 from xenon.exceptions import ValidationError
-from xenon.validation import validate_repaired_output, validate_xml_input
+from xenon.validation import validate_repaired_output, validate_xml_input, validate_with_schema
 
 
 class TestInputValidation:
@@ -65,3 +65,91 @@ class TestOutputValidation:
         with pytest.raises(ValidationError) as excinfo:
             validate_repaired_output("just some plain text", "<root>")
         assert "invalid output without XML tags" in str(excinfo.value)
+
+
+_lxml_installed = False
+try:
+    from lxml import etree
+    _lxml_installed = True
+except ImportError:
+    pass
+
+
+@pytest.mark.skipif(not _lxml_installed, reason="lxml not installed")
+class TestSchemaValidation:
+    """Tests for validate_with_schema function."""
+
+    # XSD Schema content
+    XSD_SCHEMA = """<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:element name="root">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="item" type="xs:string"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>"""
+
+    # DTD Schema content
+    DTD_SCHEMA = """<!ELEMENT root (item)>
+<!ELEMENT item (#PCDATA)>"""
+
+    def test_valid_xml_against_xsd(self):
+        """Test valid XML passes XSD validation."""
+        xml = "<root><item>test</item></root>"
+        validate_with_schema(xml, self.XSD_SCHEMA)  # Should not raise
+
+    def test_invalid_xml_against_xsd(self):
+        """Test invalid XML raises ValidationError for XSD."""
+        xml = "<root><wrong_item>test</wrong_item></root>"
+        with pytest.raises(ValidationError) as excinfo:
+            validate_with_schema(xml, self.XSD_SCHEMA)
+        assert "Schema validation failed" in str(excinfo.value)
+        assert "Element 'wrong_item': This element is not expected. Expected is ( item )." in str(excinfo.value)
+
+    def test_valid_xml_against_dtd(self):
+        """Test valid XML passes DTD validation."""
+        xml = """<!DOCTYPE root [
+{}
+]>
+<root><item>test</item></root>""".format(self.DTD_SCHEMA)
+        validate_with_schema(xml, self.DTD_SCHEMA)  # Should not raise
+
+    def test_invalid_xml_against_dtd(self):
+        """Test invalid XML raises ValidationError for DTD."""
+        xml = """<!DOCTYPE root [
+{}
+]>
+<root><wrong_item>test</wrong_item></root>""".format(self.DTD_SCHEMA)
+        with pytest.raises(ValidationError) as excinfo:
+            validate_with_schema(xml, self.DTD_SCHEMA)
+        assert "DTD validation failed" in str(excinfo.value)
+        assert "Element root content does not follow the DTD" in str(excinfo.value)
+
+@pytest.mark.skipif(_lxml_installed, reason="lxml is installed")
+class TestSchemaValidationNoLXML:
+    """Tests validate_with_schema behavior when lxml is not installed."""
+
+    def test_lxml_not_installed_raises_importerror(self):
+        """Test that ImportError is raised if lxml is not installed."""
+        # To simulate lxml not installed, we temporarily remove it from sys.modules
+        # This is a bit hacky but works for testing optional dependency behavior
+        import sys
+        if "lxml" in sys.modules:
+            _lxml = sys.modules["lxml"]
+            del sys.modules["lxml"]
+        if "lxml.etree" in sys.modules:
+            _lxml_etree = sys.modules["lxml.etree"]
+            del sys.modules["lxml.etree"]
+
+        try:
+            with pytest.raises(ImportError) as excinfo:
+                validate_with_schema("<root/>", "<xs:schema/>")
+            assert "requires the 'lxml' library" in str(excinfo.value)
+        finally:
+            # Restore lxml if it was originally there
+            if "lxml" in locals():
+                sys.modules["lxml"] = _lxml
+            if "lxml.etree" in locals():
+                sys.modules["lxml.etree"] = _lxml_etree

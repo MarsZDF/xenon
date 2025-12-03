@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 from enum import Flag, auto
+from typing import Optional
 
 
 class SecurityFlags(Flag):
@@ -11,6 +12,7 @@ class SecurityFlags(Flag):
     STRIP_DANGEROUS_PIS = auto()
     STRIP_EXTERNAL_ENTITIES = auto()
     STRIP_DANGEROUS_TAGS = auto()
+    ESCAPE_UNSAFE_ATTRIBUTES = auto()
 
 
 class RepairFlags(Flag):
@@ -48,6 +50,7 @@ class XMLRepairConfig:
     match_threshold: int = 2
     security: SecurityFlags = SecurityFlags.NONE
     repair: RepairFlags = RepairFlags.NONE
+    schema_content: Optional[str] = None
 
     @classmethod
     def from_booleans(
@@ -56,10 +59,12 @@ class XMLRepairConfig:
         strip_dangerous_pis: bool = False,
         strip_external_entities: bool = False,
         strip_dangerous_tags: bool = False,
+        escape_unsafe_attributes: bool = False,
         wrap_multiple_roots: bool = False,
         sanitize_invalid_tags: bool = False,
         fix_namespace_syntax: bool = False,
         auto_wrap_cdata: bool = False,
+        schema_content: Optional[str] = None,
     ) -> "XMLRepairConfig":
         """
         Create config from individual boolean parameters.
@@ -73,6 +78,8 @@ class XMLRepairConfig:
             security |= SecurityFlags.STRIP_EXTERNAL_ENTITIES
         if strip_dangerous_tags:
             security |= SecurityFlags.STRIP_DANGEROUS_TAGS
+        if escape_unsafe_attributes:
+            security |= SecurityFlags.ESCAPE_UNSAFE_ATTRIBUTES
 
         repair = RepairFlags.NONE
         if wrap_multiple_roots:
@@ -84,7 +91,12 @@ class XMLRepairConfig:
         if auto_wrap_cdata:
             repair |= RepairFlags.AUTO_WRAP_CDATA
 
-        return cls(match_threshold=match_threshold, security=security, repair=repair)
+        return cls(
+            match_threshold=match_threshold,
+            security=security,
+            repair=repair,
+            schema_content=schema_content,
+        )
 
     def has_security_feature(self, flag: SecurityFlags) -> bool:
         """Check if a security feature is enabled."""

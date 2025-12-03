@@ -28,12 +28,16 @@ result = repair_xml('<root><item>test')
 
 ---
 
-### `repair_xml_safe(...) -> str`
+### `repair_xml_safe(xml_input, trust, ...) -> str`
 
 **Recommended for production.** Safe XML repair with comprehensive error handling and all features.
 
 **Parameters:**
 - `xml_input` (Union[bytes, str]): XML to repair (v0.6.0: accepts bytes)
+- `trust` (TrustLevel): **REQUIRED** - Trust level of input source
+  - `TrustLevel.UNTRUSTED`: LLM output, user uploads, external APIs
+  - `TrustLevel.INTERNAL`: Internal services, config files
+  - `TrustLevel.TRUSTED`: Test fixtures, hardcoded literals
 - `strict` (bool, default=False): Validate output, raise if invalid
 - `allow_empty` (bool, default=False): Accept empty input
 - `max_size` (Optional[int], default=None): Max input size in bytes
@@ -41,6 +45,10 @@ result = repair_xml('<root><item>test')
   - `strip_dangerous_pis` (bool, default=False): Remove <?php ?>, etc.
   - `strip_external_entities` (bool, default=False): XXE prevention
   - `strip_dangerous_tags` (bool, default=False): Remove <script>, etc.
+  - `escape_unsafe_attributes` (bool, default=False): Aggressively escape attribute values (for XSS prevention)
+- **Schema Validation (v1.0.0):**
+  - `schema_content` (Optional[str], default=None): Content of the schema (XSD or DTD) for post-repair validation.
+  - `validate_output_schema` (bool, default=False): If True, validate repaired XML against `schema_content`.
 - **v0.5.0 flags:**
   - `wrap_multiple_roots` (bool, default=False): Wrap in <document>
   - `sanitize_invalid_tags` (bool, default=False): Fix invalid tag names
@@ -57,23 +65,29 @@ result = repair_xml('<root><item>test')
 **Raises:**
 - `ValidationError`: Invalid input
 - `MalformedXMLError`: Can't repair (strict mode only)
+- `SecurityError`: Security limits exceeded (max depth)
 - `RepairError`: Internal error
 
 **Example:**
 ```python
-from xenon import repair_xml_safe
+from xenon import repair_xml_safe, TrustLevel, ValidationError
 
-# Basic
-result = repair_xml_safe('<root>test')
+# Basic usage with UNTRUSTED input
+result = repair_xml_safe('<root>test', trust=TrustLevel.UNTRUSTED)
 
-# All features
-result = repair_xml_safe(
-    b'<root>&euro;50',
-    format_output='pretty',
-    html_entities='numeric',
-    strip_dangerous_pis=True,
-    strict=True
-)
+# With enhanced XSS protection
+xss_xml = '<root><a href="javascript:alert(1)">Click</a></root>'
+safe_xss = repair_xml_safe(xss_xml, trust=TrustLevel.UNTRUSTED, escape_unsafe_attributes=True)
+# Result might be: <root><a href="javascript&#x3A;alert&#x28;1&#x29;">Click</a></root>
+
+# With schema validation
+XSD_SCHEMA = "<xs:schema ...>" # Your XSD schema content
+valid_xml = "<root><item>data</item></root>"
+try:
+    repaired = repair_xml_safe(valid_xml, trust=TrustLevel.UNTRUSTED, schema_content=XSD_SCHEMA, validate_output_schema=True)
+    print("XML is valid against schema.")
+except ValidationError as e:
+    print(f"XML failed schema validation: {e}")
 ```
 
 ---
@@ -131,7 +145,7 @@ result = parse_xml('<root><user name="john">Hello</user></root>')
 
 ---
 
-### `parse_xml_safe(xml_string: str, ...) -> Dict[str, Any]`
+### `parse_xml_safe(xml_string: str, trust: TrustLevel, ...) -> Dict[str, Any]`
 
 **Recommended for production.** Safely parse malformed XML to dictionary with error handling.
 
@@ -139,9 +153,21 @@ This function repairs the XML using `repair_xml_safe()`, then converts to a dict
 
 **Parameters:**
 - `xml_string` (str): XML to parse
+- `trust` (TrustLevel): **REQUIRED** - Trust level of input source
+  - `TrustLevel.UNTRUSTED`: LLM output, user uploads, external APIs
+  - `TrustLevel.INTERNAL`: Internal services, config files
+  - `TrustLevel.TRUSTED`: Test fixtures, hardcoded literals
 - `strict` (bool, default=False): Validate repaired XML structure
 - `allow_empty` (bool, default=False): Accept empty input (returns {})
 - `max_size` (Optional[int], default=None): Maximum input size in bytes
+- **Security flags:** (Same as `repair_xml_safe`)
+  - `strip_dangerous_pis` (bool, default=False)
+  - `strip_external_entities` (bool, default=False)
+  - `strip_dangerous_tags` (bool, default=False)
+  - `escape_unsafe_attributes` (bool, default=False)
+- **Schema Validation (v1.0.0):**
+  - `schema_content` (Optional[str], default=None): Content of the schema (XSD or DTD)
+  - `validate_output_schema` (bool, default=False)
 
 **Returns:**
 - `Dict[str, Any]`: Dictionary representation of the XML
@@ -149,18 +175,19 @@ This function repairs the XML using `repair_xml_safe()`, then converts to a dict
 **Raises:**
 - `ValidationError`: Invalid input
 - `MalformedXMLError`: If strict=True and repair fails
+- `SecurityError`: Security limits exceeded (max depth)
 - `RepairError`: Internal error
 
 **Example:**
 ```python
-from xenon import parse_xml_safe
+from xenon import parse_xml_safe, TrustLevel
 
-# Parse malformed XML
-result = parse_xml_safe('<root><item>test')
+# Parse malformed XML with UNTRUSTED level
+result = parse_xml_safe('<root><item>test', trust=TrustLevel.UNTRUSTED)
 # {'root': {'item': 'test'}}
 
 # Handle empty input
-result = parse_xml_safe('', allow_empty=True)
+result = parse_xml_safe('', allow_empty=True, trust=TrustLevel.TRUSTED)
 # {}
 ```
 
@@ -371,24 +398,29 @@ xml = decode_xml(b'\xef\xbb\xbf<root>test</root>')
 
 ---
 
-### `batch_repair(xml_strings: List[str], *, show_progress: bool = False, on_error: str = 'skip', **repair_kwargs) -> List[Tuple[str, Optional[Exception]]]`
+### `batch_repair(xml_strings: List[str], trust: TrustLevel, *, show_progress: bool = False, on_error: str = 'skip', **repair_kwargs) -> List[Tuple[str, Optional[Exception]]]`
 
-Repair multiple XMLs in batch.
+**🔒 v1.0.0:** Batch repair multiple XML strings with error handling.
 
-**Parameters:**
-- `xml_strings` (List[str]): XMLs to repair
-- `show_progress` (bool, default=False): Show progress
-- `on_error` (str, default='skip'): 'skip', 'raise', or 'return_empty'
-- `**repair_kwargs`: Passed to `repair_xml_safe()`
+**Required Parameters:**
+- `xml_strings` (List[str]): List of XML strings to repair
+- `trust` (TrustLevel): **REQUIRED** - Trust level for all inputs
+
+**Optional Parameters:**
+- `show_progress` (bool): Show progress indicator (default: False)
+- `on_error` (str): Error handling - 'skip', 'raise', 'return_empty' (default: 'skip')
+- `**repair_kwargs`: Passed to `repair_xml_safe()` (including security overrides and schema validation parameters)
 
 **Returns:**
-- `List[Tuple[str, Optional[Exception]]]`: [(xml, error), ...]
+- `List[Tuple[str, Optional[Exception]]]`: [(repaired_xml, error), ...]
 
 **Example:**
 ```python
-from xenon import batch_repair
+from xenon import batch_repair, TrustLevel
 
-results = batch_repair(['<root>test1', '<root>test2</root>'])
+xml_batch = ['<root>test1', '<root>test2</root>']
+results = batch_repair(xml_batch, trust=TrustLevel.UNTRUSTED)
+
 for xml, error in results:
     if error:
         print(f"Failed: {error}")
@@ -585,6 +617,7 @@ Low-level repair engine for advanced use cases.
 **Parameters:**
 All the same flags as `repair_xml_safe()`, or:
 - `config` (XMLRepairConfig): Configuration object
+- `schema_content` (Optional[str]): Content of the schema (XSD or DTD) for post-repair validation.
 
 **Methods:**
 - `repair_xml(xml_string: str) -> str`
@@ -609,6 +642,7 @@ Security feature flags for bitwise operations.
 - `STRIP_DANGEROUS_PIS` - Remove dangerous processing instructions (<?php ?>, etc.)
 - `STRIP_EXTERNAL_ENTITIES` - Remove external entities (XXE prevention)
 - `STRIP_DANGEROUS_TAGS` - Remove dangerous tags (<script>, <iframe>, etc.)
+- `ESCAPE_UNSAFE_ATTRIBUTES` - Aggressively escape attribute values to prevent XSS
 
 **Usage:**
 ```python
@@ -627,6 +661,7 @@ config = XMLRepairConfig(
     security=SecurityFlags.STRIP_DANGEROUS_PIS
     | SecurityFlags.STRIP_EXTERNAL_ENTITIES
     | SecurityFlags.STRIP_DANGEROUS_TAGS
+    | SecurityFlags.ESCAPE_UNSAFE_ATTRIBUTES
 )
 ```
 
@@ -674,6 +709,7 @@ Configuration object (v0.5.0+).
 - `security` (SecurityFlags, default=SecurityFlags.NONE): Security features to enable
 - `repair` (RepairFlags, default=RepairFlags.NONE): Repair features to enable
 - `match_threshold` (int, default=2): Tag matching threshold for autocorrection
+- `schema_content` (Optional[str], default=None): Content of the schema (XSD or DTD) for post-repair validation.
 
 **Methods:**
 
@@ -718,6 +754,30 @@ config = XMLRepairConfig(
 
 engine = XMLRepairEngine(config=config)
 result = engine.repair_xml('<root><?php code ?><123tag>test</123tag></root>')
+```
+
+---
+
+### `TrustLevel` (Enum)
+
+Trust level of XML input source.
+
+Trust levels automatically configure security features appropriate for the source.
+
+**Values:**
+- `UNTRUSTED` - For LLM output, user uploads, external APIs. Enables all protections.
+- `INTERNAL` - For internal services, trusted microservices, configuration files. Enables moderate protections.
+- `TRUSTED` - For hardcoded literals, test fixtures, known-good data. Disables most security checks for maximum performance.
+
+**Usage:**
+```python
+from xenon import TrustLevel, repair_xml_safe
+
+# Use UNTRUSTED for maximum security
+result = repair_xml_safe(llm_output, trust=TrustLevel.UNTRUSTED)
+
+# Use TRUSTED for known-good data (fastest)
+result = repair_xml_safe(TEST_XML, trust=TrustLevel.TRUSTED)
 ```
 
 ---
@@ -992,6 +1052,7 @@ from xenon import (
     XMLRepairConfig,
     SecurityFlags,
     RepairFlags,
+    TrustLevel,
     RepairReport,
     RepairAction,
     RepairType,

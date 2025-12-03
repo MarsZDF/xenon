@@ -199,6 +199,7 @@ def production_xml_handler(xml: str, source: str) -> str:
             strip_dangerous_pis=True,     # Security
             strip_external_entities=True, # XXE prevention
             strip_dangerous_tags=True,    # XSS prevention
+            escape_unsafe_attributes=True, # Enhanced XSS protection
             format_output='compact'       # Consistent formatting
         )
 
@@ -478,14 +479,17 @@ def repair_and_transform(xml: str) -> str:
     return repaired
 ```
 
-### Recipe 15: Integration with Validation Libraries
+### Recipe 15: Integration with External Validation Libraries (DEPRECATED)
 
 ```python
 from xenon import repair_xml_safe
 from lxml import etree
 
-def repair_and_validate_schema(xml: str, xsd_path: str) -> tuple[str, bool]:
-    """Repair XML and validate against XSD schema."""
+def repair_and_validate_schema_external(xml: str, xsd_path: str) -> tuple[str, bool]:
+    """
+    Repair XML and validate against XSD schema using an external library.
+    Use Xenon's built-in schema validation instead where possible.
+    """
 
     # Repair first
     repaired = repair_xml_safe(xml)
@@ -502,9 +506,66 @@ def repair_and_validate_schema(xml: str, xsd_path: str) -> tuple[str, bool]:
     return repaired, is_valid
 
 # Usage
-xml, valid = repair_and_validate_schema(llm_output, 'schema.xsd')
+xml, valid = repair_and_validate_schema_external(llm_output, 'schema.xsd')
 if valid:
     process_xml(xml)
+```
+
+### Recipe 17: In-place Schema Validation (NEW)
+
+```python
+from xenon import repair_xml_safe, ValidationError, TrustLevel
+
+# Define a simple XSD schema
+XSD_SCHEMA_CONTENT = """<?xml version="1.0" encoding="UTF-8"?>
+<xs:schema xmlns:xs="http://www.w3.org/2001/XMLSchema">
+  <xs:element name="root">
+    <xs:complexType>
+      <xs:sequence>
+        <xs:element name="item" type="xs:string"/>
+      </xs:sequence>
+    </xs:complexType>
+  </xs:element>
+</xs:schema>"""
+
+def repair_and_validate_in_place(xml: str) -> str:
+    """
+    Repair XML and validate it against an embedded schema using Xenon's built-in capability.
+    This simplifies the validation workflow by integrating it directly into `repair_xml_safe`.
+    """
+    try:
+        # Repair and validate in one call
+        repaired = repair_xml_safe(
+            xml,
+            trust=TrustLevel.UNTRUSTED,
+            schema_content=XSD_SCHEMA_CONTENT,
+            validate_output_schema=True  # Explicitly enable schema validation
+        )
+        print("XML repaired and validated successfully!")
+        return repaired
+    except ValidationError as e:
+        print(f"XML repaired but failed schema validation: {e}")
+        # Depending on use case, you might want to re-raise or return original/empty
+        raise
+    except Exception as e:
+        print(f"An unexpected error occurred during repair or validation: {e}")
+        raise
+
+# Example Usage:
+# Valid XML (after potential repair)
+valid_xml = "<root><item>Hello</item></root>"
+repair_and_validate_in_place(valid_xml)
+
+# Invalid XML (will fail schema validation)
+invalid_xml = "<root><wrong_tag>World</wrong_tag></root>"
+try:
+    repair_and_validate_in_place(invalid_xml)
+except ValidationError:
+    print("Caught expected ValidationError for invalid XML.")
+
+# Malformed XML that might become valid after repair
+malformed_valid_xml = "<root><item>Hello</item"
+repair_and_validate_in_place(malformed_valid_xml)
 ```
 
 ### Recipe 16: Analyze Repair Patterns
