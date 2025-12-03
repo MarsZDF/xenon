@@ -2,7 +2,7 @@
 
 import pytest
 
-from xenon import RepairAction, RepairReport, RepairType, repair_xml_with_report
+from xenon import RepairAction, RepairReport, RepairType, TrustLevel, repair_xml_with_report
 
 
 class TestRepairReport:
@@ -147,7 +147,7 @@ class TestRepairXMLWithReport:
     def test_no_repairs_needed(self):
         """Test well-formed XML."""
         xml = "<root><item>Hello</item></root>"
-        result, report = repair_xml_with_report(xml)
+        result, report = repair_xml_with_report(xml, trust=TrustLevel.TRUSTED)
 
         assert result == xml
         assert len(report) == 0
@@ -156,7 +156,7 @@ class TestRepairXMLWithReport:
     def test_truncation_repair(self):
         """Test truncation detection."""
         xml = "<root><item>Hello"
-        result, report = repair_xml_with_report(xml)
+        result, report = repair_xml_with_report(xml, trust=TrustLevel.TRUSTED)
 
         assert "</item>" in result
         assert "</root>" in result
@@ -169,7 +169,7 @@ class TestRepairXMLWithReport:
     def test_entity_escaping_repair(self):
         """Test entity escaping detection."""
         xml = "<root>Tom & Jerry</root>"
-        result, report = repair_xml_with_report(xml)
+        result, report = repair_xml_with_report(xml, trust=TrustLevel.TRUSTED)
 
         assert "&amp;" in result
 
@@ -182,7 +182,7 @@ class TestRepairXMLWithReport:
     def test_attribute_repair(self):
         """Test attribute repair detection."""
         xml = "<root><item name=john>Hello</item></root>"
-        result, report = repair_xml_with_report(xml)
+        result, report = repair_xml_with_report(xml, trust=TrustLevel.TRUSTED)
 
         assert 'name="john"' in result
 
@@ -194,7 +194,7 @@ class TestRepairXMLWithReport:
     def test_multiple_repairs(self):
         """Test multiple repairs in one document."""
         xml = "<root><item name=john>Tom & Jerry"
-        result, report = repair_xml_with_report(xml)
+        result, report = repair_xml_with_report(xml, trust=TrustLevel.TRUSTED)
 
         # Should have multiple repairs
         assert len(report) >= 2
@@ -206,7 +206,7 @@ class TestRepairXMLWithReport:
     def test_report_structure(self):
         """Test report has correct structure."""
         xml = "<root><item>Hello"
-        result, report = repair_xml_with_report(xml)
+        result, report = repair_xml_with_report(xml, trust=TrustLevel.TRUSTED)
 
         assert isinstance(report, RepairReport)
         assert report.original_xml == xml
@@ -224,7 +224,7 @@ class TestRepairXMLWithReport:
         # This is speculative - CDATA wrapping may or may not be implemented
         # The test is here to verify if it works when implemented
         xml = "<code>if (x < 5) { return true; }</code>"
-        result, report = repair_xml_with_report(xml)
+        result, report = repair_xml_with_report(xml, trust=TrustLevel.TRUSTED)
 
         # If CDATA was added, it should be detected
         if "<![CDATA[" in result and "<![CDATA[" not in xml:
@@ -234,7 +234,7 @@ class TestRepairXMLWithReport:
     def test_report_is_truthy_when_repairs_made(self):
         """Test that report evaluates to True when repairs were made."""
         xml = "<root><item>Hello"
-        result, report = repair_xml_with_report(xml)
+        result, report = repair_xml_with_report(xml, trust=TrustLevel.TRUSTED)
 
         # Report should be truthy if repairs were made
         if len(report) > 0:
@@ -245,7 +245,7 @@ class TestRepairXMLWithReport:
     def test_report_statistics_accuracy(self):
         """Test that statistics are accurate."""
         xml = "<root><item>Hello"
-        result, report = repair_xml_with_report(xml)
+        result, report = repair_xml_with_report(xml, trust=TrustLevel.TRUSTED)
 
         stats = report.statistics()
         assert stats["total_repairs"] == len(report)

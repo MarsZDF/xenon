@@ -4,13 +4,15 @@ A robust, zero-dependency Python library for cleaning up malformed XML generated
 
 ## Features
 
+- **🔒 v1.0.0**: Secure-by-default with explicit trust levels (BREAKING CHANGES - see below)
 - **Zero Dependencies**: Uses only Python Standard Library
 - **Stack-based Parser**: Deterministic handling of nested structures and truncation
 - **LLM-Focused**: Specifically designed to handle common LLM XML generation failures
 - **Smart Tag Matching**: Detects and fixes typos in closing tags using similarity matching
 - **Robust Error Handling**: Production-ready with comprehensive validation and error recovery
 - **Multiple Modes**: Choose between strict, default, or lenient error handling
-- **Simple Interface**: Easy-to-use functions for common use cases
+- **Simple Interface**: Easy-to-use functions with explicit security posture
+- **🚀 v0.7.0**: Real-time streaming repair for LLM token-by-token output (near-zero latency!)
 - **🆕 v0.6.0**: Diff reporting, formatting, HTML entities, and encoding detection
 - **v0.5.0**: Advanced XML compliance features and cleaner configuration API
 
@@ -32,37 +34,142 @@ pip install -e .
 
 > **Note**: This package is not yet published to PyPI. Once published, you'll be able to install with `pip install xenon`.
 
-## ⚠️ Security Warning & Features
+## 🔒 v1.0.0: Secure-by-Default (BREAKING CHANGES)
 
-**Xenon is a syntactic repair tool, NOT a complete security sanitizer.**
+**Version 1.0.0 introduces mandatory trust levels for security-conscious XML repair.**
 
-**Security features** (optional, OFF by default):
+### ⚠️ Breaking Changes
+
+All core functions now **require** a `trust` parameter specifying the security posture:
+
+```python
+# ❌ OLD (v0.x) - No longer works
+from xenon import repair_xml_safe
+result = repair_xml_safe(llm_output)
+
+# ✅ NEW (v1.0.0) - Trust level required
+from xenon import repair_xml_safe, TrustLevel
+result = repair_xml_safe(llm_output, trust=TrustLevel.UNTRUSTED)
+```
+
+### Trust Levels Explained
+
+Choose the trust level based on your input source:
+
+| Trust Level | Use For | Security Features | Performance |
+|-------------|---------|-------------------|-------------|
+| **`UNTRUSTED`** | LLM output, user uploads, external APIs | 🔒 All protections enabled | ~15-20% slower |
+| **`INTERNAL`** | Internal services, config files, database exports | 🔐 Moderate protections | ~5% slower |
+| **`TRUSTED`** | Hardcoded literals, test fixtures, known-good data | ⚡ No security overhead | Fastest (baseline) |
+
+```python
+from xenon import repair_xml_safe, TrustLevel
+
+# LLM output - maximum security
+llm_xml = chatgpt_response.content
+safe = repair_xml_safe(llm_xml, trust=TrustLevel.UNTRUSTED)
+# Automatically strips: <?php ?>, <!DOCTYPE>, <script>, limits depth
+
+# Internal microservice - balanced security
+service_xml = internal_api_call()
+result = repair_xml_safe(service_xml, trust=TrustLevel.INTERNAL)
+# Strips: <!DOCTYPE> (defense in depth)
+
+# Test fixture - no overhead
+TEST_XML = '<root><item>test</item></root>'
+repaired = repair_xml_safe(TEST_XML, trust=TrustLevel.TRUSTED)
+# No security checks, fastest performance
+```
+
+### Migration Guide
+
+**Step 1:** Add `TrustLevel` import
+```python
+from xenon import repair_xml_safe, TrustLevel  # Add TrustLevel
+```
+
+**Step 2:** Add `trust` parameter to all function calls
+
+```python
+# Before (v0.x)
+repair_xml_safe(xml)
+parse_xml_safe(xml)
+batch_repair([xml1, xml2])
+StreamingXMLRepair()
+
+# After (v1.0.0)
+repair_xml_safe(xml, trust=TrustLevel.UNTRUSTED)
+parse_xml_safe(xml, trust=TrustLevel.UNTRUSTED)
+batch_repair([xml1, xml2], trust=TrustLevel.UNTRUSTED)
+StreamingXMLRepair(trust=TrustLevel.UNTRUSTED)
+```
+
+**Step 3:** Choose appropriate trust level
+- **Default to `UNTRUSTED`** for safety
+- Use `INTERNAL` only for internal services you control
+- Use `TRUSTED` only for hardcoded test data
+
+### What Changed Under the Hood
+
+**UNTRUSTED** level automatically enables:
+- ✅ Strip dangerous processing instructions (PHP, ASP, JSP)
+- ✅ Strip external entities (XXE prevention)
+- ✅ Strip dangerous tags (script, iframe, object, embed)
+- ✅ Max depth limit: 1000 (DoS prevention)
+- ✅ Strict validation
+- ✅ Threat auditing
+
+**INTERNAL** level enables:
+- ✅ Strip external entities (defense in depth)
+- ✅ Max depth limit: 10000
+
+**TRUSTED** level:
+- ⚡ All security checks disabled for maximum performance
+
+### Why This Change?
+
+**Security by default:** Making trust explicit forces developers to think about security at the point of use, preventing accidental exposure to injection attacks.
+
+**Pit of success:** The new API makes it **harder to make insecure choices** and **easier to make secure ones**.
+
+## ⚠️ Security Model
+
+**Xenon is a syntactic repair tool with security guardrails, NOT a complete security sanitizer.**
+
+**What Xenon DOES** (with appropriate trust levels):
 - ✓ Strip dangerous processing instructions (PHP, ASP, JSP)
 - ✓ Strip external entity declarations (XXE prevention)
 - ✓ Strip dangerous tags (script, iframe, object, embed)
+- ✓ Limit nesting depth (DoS prevention)
+- ✓ Validate output structure
 
-**Xenon does NOT**:
-- ✗ Filter malicious Unicode
+**What Xenon does NOT**:
+- ✗ Filter all malicious Unicode
 - ✗ Validate XML content semantics
 - ✗ Provide complete XSS protection
+- ✗ Sandbox execution environments
 
-**For untrusted input:** Use the security flags AND add additional validation layers.
+**For untrusted input:** Use `TrustLevel.UNTRUSTED` AND add application-level validation.
 
 See [SECURITY.md](SECURITY.md) for detailed threat model and best practices.
 
 ## Quick Start
 
 ```python
-from xenon import repair_xml, parse_xml
+from xenon import repair_xml_safe, parse_xml_safe, TrustLevel
 
-# Repair malformed XML
-malformed = 'Sure, here is the XML: <root><user name=john'
-repaired = repair_xml(malformed)
+# Repair malformed LLM output
+llm_output = 'Sure, here is the XML: <root><user name=john'
+repaired = repair_xml_safe(llm_output, trust=TrustLevel.UNTRUSTED)
 print(repaired)  # <root><user name="john"></user></root>
 
 # Parse to dictionary
-result = parse_xml(malformed)
+result = parse_xml_safe(llm_output, trust=TrustLevel.UNTRUSTED)
 print(result)    # {'root': {'user': {'@attributes': {'name': 'john'}}}}
+
+# For test fixtures (no security overhead)
+TEST_XML = '<root><item>test</item></root>'
+result = repair_xml_safe(TEST_XML, trust=TrustLevel.TRUSTED)
 ```
 
 ## What's New in v0.6.0 🆕
@@ -303,6 +410,88 @@ line, col = get_line_column(xml, position)
 context = get_context_snippet(xml, position, max_length=40)
 print(f"Found at line {line}, column {col}: {context}")
 ```
+
+## What's New in v0.7.0 🚀
+
+### Streaming XML Repair for Real-Time LLM Output
+Process XML as it's being generated, **token-by-token**, for near-zero latency in RAG pipelines:
+
+```python
+from xenon.streaming import StreamingXMLRepair
+from xenon import TrustLevel
+
+# Context manager (recommended - auto-finalize)
+with StreamingXMLRepair(trust=TrustLevel.UNTRUSTED) as repairer:
+    for chunk in llm_stream():
+        for safe_xml in repairer.feed(chunk):
+            yield safe_xml  # ✅ User sees output instantly!
+    # finalize() called automatically - closes open tags
+
+# Manual control
+repairer = StreamingXMLRepair(trust=TrustLevel.UNTRUSTED)
+
+# Feed chunks as they arrive
+for chunk in ["<root><user na", "me=john>Hel", "lo</user>"]:
+    for safe_xml in repairer.feed(chunk):
+        print(safe_xml)
+        # Output:
+        # <root>
+        # <user name="john">
+        # Hello
+        # </user>
+
+# Finalize to close any open tags
+for final_xml in repairer.finalize():
+    print(final_xml)
+    # Output:
+    # </root>
+```
+
+**Note**: Currently sync-only. Async support planned for future release.
+
+**Benefits:**
+- ⚡ **Near-zero latency**: Yields XML as tokens arrive, no waiting for completion
+- 🧠 **Constant memory**: Small buffer (~200 bytes) vs full XML in memory
+- 🔧 **Handles chunk boundaries**: Tags can be split across chunks
+- 🎯 **Strips conversational fluff**: Automatically discards text before first `<`
+- 🏭 **Production-ready**: Repairs attributes, entities, and truncation
+- 📦 **Context manager support**: Auto-finalize prevents unclosed tags
+
+**Perfect for:**
+- LLM streaming responses in RAG/chat applications
+- Real-time XML generation from agents
+- Processing large XML files without loading into memory
+- Any scenario where immediate feedback matters
+
+**Example: ChatGPT-style streaming**
+```python
+from xenon.streaming import StreamingXMLRepair
+from xenon import TrustLevel
+
+def llm_stream():
+    # Simulate LLM output with conversational fluff
+    yield "Sure, here's the XML you requested:\n\n"
+    yield "<response>"
+    yield '<user id=123 name='
+    yield 'john>Hello'
+    yield "</user>"
+    # Oops, LLM stopped generating!
+
+with StreamingXMLRepair(trust=TrustLevel.UNTRUSTED) as repairer:
+    for chunk in llm_stream():
+        for safe_xml in repairer.feed(chunk):
+            print(safe_xml, end='')
+    # Auto-finalize adds missing </response>
+
+# Output: <response><user id="123" name="john">Hello</user></response>
+```
+
+**Trade-offs vs Batch Mode:**
+- ✅ Streaming: Near-zero latency, constant memory
+- ✅ Batch: Typo detection with Levenshtein, lookahead
+- Use streaming for real-time output, batch for complete documents
+
+See [STREAMING_DESIGN.md](docs/STREAMING_DESIGN.md) for architecture details.
 
 ## What's New in v0.5.0
 
@@ -644,56 +833,35 @@ except XenonException as e:
 
 ## Function Reference
 
-### Core Functions
+### Core Functions (v1.0.0+)
 
-#### `repair_xml(xml_string: str) -> str`
+#### `repair_xml_safe(xml_string, trust, ...) -> str`
 
-Original repair function without error handling.
+**🔒 v1.0.0:** Safely repair XML with trust-based security.
 
-**Parameters:**
-- `xml_string`: The potentially malformed XML string
+**Required Parameters:**
+- `xml_string` (str | bytes): The XML string to repair
+- `trust` (TrustLevel): **REQUIRED** - Trust level of input source
+  - `TrustLevel.UNTRUSTED`: LLM output, user uploads, external APIs
+  - `TrustLevel.INTERNAL`: Internal services, config files
+  - `TrustLevel.TRUSTED`: Test fixtures, hardcoded literals
 
-**Returns:**
-- A well-formed XML string
-
-**Note:** No input validation - use `repair_xml_safe()` for production.
-
----
-
-#### `parse_xml(xml_string: str) -> dict`
-
-Repairs and parses malformed XML to a dictionary.
-
-**Parameters:**
-- `xml_string`: The potentially malformed XML string
-
-**Returns:**
-- A nested dictionary representation of the XML
-
-**Dictionary Structure:**
-- Element text content: stored as string value or `#text` key
-- Attributes: stored under `@attributes` key
-- Multiple elements with same name: converted to list
-
----
-
-### Safe Functions (Recommended)
-
-#### `repair_xml_safe(...) -> str`
-
-Safely repair XML with comprehensive error handling and optional security features.
-
-**Parameters:**
-- `xml_string` (str): The XML string to repair
+**Optional Parameters:**
 - `strict` (bool): Validate output structure (default: False)
 - `allow_empty` (bool): Accept empty input (default: False)
 - `max_size` (int): Max size in bytes, None = unlimited (default: 100MB)
-- `strip_dangerous_pis` (bool): Strip dangerous processing instructions like PHP, ASP, JSP (default: False)
-- `strip_external_entities` (bool): Strip DOCTYPE declarations with external entities for XXE prevention (default: False)
-- `strip_dangerous_tags` (bool): Strip potentially dangerous tags (script, iframe, object, embed) for XSS prevention (default: False)
-- `wrap_multiple_roots` (bool): Wrap multiple root elements in synthetic `<document>` root (default: False) **[NEW in v0.5.0]**
-- `sanitize_invalid_tags` (bool): Fix invalid XML tag names (default: False) **[NEW in v0.5.0]**
-- `fix_namespace_syntax` (bool): Fix invalid namespace syntax (default: False) **[NEW in v0.5.0]**
+- `format_output` (str): Output format - 'pretty', 'compact', 'minify' (default: None)
+- `html_entities` (str): HTML entity handling - 'numeric', 'preserve' (default: None)
+- `normalize_unicode` (bool): Apply Unicode normalization (default: False)
+- Override security flags (use with caution):
+  - `strip_dangerous_pis` (bool): Override trust level default
+  - `strip_external_entities` (bool): Override trust level default
+  - `strip_dangerous_tags` (bool): Override trust level default
+- XML compliance features:
+  - `wrap_multiple_roots` (bool): Wrap multiple roots (default: False)
+  - `sanitize_invalid_tags` (bool): Fix invalid tag names (default: False)
+  - `fix_namespace_syntax` (bool): Fix namespace syntax (default: False)
+  - `auto_wrap_cdata` (bool): Auto-wrap code in CDATA (default: False)
 
 **Returns:**
 - Repaired XML string
@@ -701,13 +869,35 @@ Safely repair XML with comprehensive error handling and optional security featur
 **Raises:**
 - `ValidationError`: Invalid input
 - `MalformedXMLError`: Invalid output (strict mode only)
+- `SecurityError`: Security limits exceeded (max depth, entity expansion)
 - `RepairError`: Internal repair error
+
+**Examples:**
+```python
+from xenon import repair_xml_safe, TrustLevel
+
+# LLM output - maximum security
+result = repair_xml_safe(llm_xml, trust=TrustLevel.UNTRUSTED)
+
+# Internal service - moderate security
+result = repair_xml_safe(service_xml, trust=TrustLevel.INTERNAL)
+
+# Test fixture - no security overhead
+result = repair_xml_safe(TEST_XML, trust=TrustLevel.TRUSTED)
+
+# Override security for specific case
+result = repair_xml_safe(
+    xml,
+    trust=TrustLevel.TRUSTED,  # Base level
+    strip_dangerous_pis=True   # But still strip PIs
+)
+```
 
 ---
 
-#### `parse_xml_safe(xml_string, strict=False, allow_empty=False, max_size=None) -> dict`
+#### `parse_xml_safe(xml_string, trust, ...) -> dict`
 
-Safely parse malformed XML to dictionary.
+**🔒 v1.0.0:** Safely parse malformed XML to dictionary with trust-based security.
 
 **Parameters:**
 - Same as `repair_xml_safe()`
@@ -717,6 +907,52 @@ Safely parse malformed XML to dictionary.
 
 **Raises:**
 - Same exceptions as `repair_xml_safe()`
+
+---
+
+#### `batch_repair(xml_list, trust, ...) -> List[Tuple[str, Optional[Exception]]]`
+
+**🔒 v1.0.0:** Batch repair multiple XML strings with error handling.
+
+**Required Parameters:**
+- `xml_strings` (List[str]): List of XML strings to repair
+- `trust` (TrustLevel): **REQUIRED** - Trust level for all inputs
+
+**Optional Parameters:**
+- `show_progress` (bool): Show progress indicator (default: False)
+- `on_error` (str): Error handling - 'skip', 'raise', 'return_empty' (default: 'skip')
+- Additional kwargs passed to `repair_xml_safe()`
+
+**Returns:**
+- List of (repaired_xml, error) tuples
+
+**Example:**
+```python
+from xenon import batch_repair, TrustLevel
+
+xml_batch = ['<root>test1', '<root>test2</root>']
+results = batch_repair(xml_batch, trust=TrustLevel.UNTRUSTED)
+
+for xml, error in results:
+    if error:
+        print(f"Failed: {error}")
+    else:
+        print(f"Success: {xml}")
+```
+
+---
+
+#### Legacy Functions (Deprecated)
+
+**⚠️ These functions are deprecated and will be removed in v2.0.0. Use trust-based functions instead.**
+
+#### `repair_xml(xml_string: str) -> str`
+
+**Deprecated:** Use `repair_xml_safe(xml, trust=TrustLevel.TRUSTED)` instead.
+
+#### `parse_xml(xml_string: str) -> dict`
+
+**Deprecated:** Use `parse_xml_safe(xml, trust=TrustLevel.TRUSTED)` instead.
 
 ---
 
@@ -852,6 +1088,8 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ## Version History
 
+- **v1.0.0** (2025-12-03): 🔒 **BREAKING CHANGES** - Secure-by-default with mandatory trust levels, SecurityError exception, streaming security filtering, XMLRepairEngine.from_trust_level() factory method. [See migration guide above](#-v100-secure-by-default-breaking-changes)
+- **v0.7.0** (2025-12-02): Real-time streaming XML repair for LLM token-by-token output
 - **v0.6.0** (2025-12-01): Diff reporting, XML formatting, HTML entities, encoding detection, enhanced errors
 - **v0.5.0** (2025-11-29): XML compliance features, configuration API, architectural refactoring
 - **v0.4.0** (2025-11-28): Security features, safe mode, error handling

@@ -9,6 +9,7 @@ import time
 import pytest
 
 from xenon import (
+    TrustLevel,
     batch_repair,
     convert_html_entities,
     detect_encoding,
@@ -36,7 +37,7 @@ class TestRepairBenchmarks:
     def test_repair_small_valid(self):
         """Benchmark repairing small valid XML."""
         start = time.perf_counter()
-        result = repair_xml_safe(SMALL_XML)
+        result = repair_xml_safe(SMALL_XML, trust=TrustLevel.TRUSTED)
         elapsed = time.perf_counter() - start
         assert "<root>" in result
         assert elapsed < 0.1  # Should be very fast
@@ -44,7 +45,7 @@ class TestRepairBenchmarks:
     def test_repair_small_truncated(self):
         """Benchmark repairing small truncated XML."""
         start = time.perf_counter()
-        result = repair_xml_safe(SMALL_TRUNCATED)
+        result = repair_xml_safe(SMALL_TRUNCATED, trust=TrustLevel.TRUSTED)
         elapsed = time.perf_counter() - start
         assert "</root>" in result
         assert elapsed < 0.1
@@ -52,7 +53,7 @@ class TestRepairBenchmarks:
     def test_repair_medium_valid(self):
         """Benchmark repairing medium valid XML."""
         start = time.perf_counter()
-        result = repair_xml_safe(MEDIUM_XML)
+        result = repair_xml_safe(MEDIUM_XML, trust=TrustLevel.TRUSTED)
         elapsed = time.perf_counter() - start
         assert "<root>" in result
         assert elapsed < 0.5
@@ -60,7 +61,7 @@ class TestRepairBenchmarks:
     def test_repair_medium_truncated(self):
         """Benchmark repairing medium truncated XML."""
         start = time.perf_counter()
-        result = repair_xml_safe(MEDIUM_TRUNCATED)
+        result = repair_xml_safe(MEDIUM_TRUNCATED, trust=TrustLevel.TRUSTED)
         elapsed = time.perf_counter() - start
         assert "</root>" in result
         assert elapsed < 0.5
@@ -68,7 +69,7 @@ class TestRepairBenchmarks:
     def test_repair_large_valid(self):
         """Benchmark repairing large valid XML."""
         start = time.perf_counter()
-        result = repair_xml_safe(LARGE_XML)
+        result = repair_xml_safe(LARGE_XML, trust=TrustLevel.TRUSTED)
         elapsed = time.perf_counter() - start
         assert "<root>" in result
         assert elapsed < 1.0  # 1000 items should still be under 1 second
@@ -76,7 +77,7 @@ class TestRepairBenchmarks:
     def test_repair_large_truncated(self):
         """Benchmark repairing large truncated XML."""
         start = time.perf_counter()
-        result = repair_xml_safe(LARGE_TRUNCATED)
+        result = repair_xml_safe(LARGE_TRUNCATED, trust=TrustLevel.TRUSTED)
         elapsed = time.perf_counter() - start
         assert "</root>" in result
         assert elapsed < 1.0
@@ -137,7 +138,7 @@ class TestBatchBenchmarks:
         """Benchmark batch repair of 100 items."""
         xml_batch = [f"<root><item>{i}</item></root>" for i in range(100)]
         start = time.perf_counter()
-        results = batch_repair(xml_batch)
+        results = batch_repair(xml_batch, trust=TrustLevel.TRUSTED)
         elapsed = time.perf_counter() - start
         assert len(results) == 100
         assert elapsed < 2.0  # 100 items in under 2 seconds
@@ -149,14 +150,18 @@ class TestIntegratedBenchmarks:
 
     def test_repair_with_formatting(self):
         """Benchmark repair + formatting."""
-        result = repair_xml_safe(MEDIUM_TRUNCATED, format_output="pretty")
+        result = repair_xml_safe(MEDIUM_TRUNCATED, trust=TrustLevel.TRUSTED, format_output="pretty")
         assert "</root>" in result
 
     def test_repair_bytes_with_all_features(self):
         """Benchmark bytes input with all v0.6.0 features."""
         xml_bytes = b"<root><p>&euro;50</p><item>data"
         result = repair_xml_safe(
-            xml_bytes, format_output="compact", html_entities="numeric", normalize_unicode=True
+            xml_bytes,
+            trust=TrustLevel.TRUSTED,
+            format_output="compact",
+            html_entities="numeric",
+            normalize_unicode=True,
         )
         assert "</item>" in result
 
@@ -179,7 +184,7 @@ class TestRegressionBenchmarks:
                         <item>Product 2
         """
         start = time.perf_counter()
-        result = repair_xml_safe(llm_xml)
+        result = repair_xml_safe(llm_xml, trust=TrustLevel.TRUSTED)
         elapsed = time.perf_counter() - start
         assert "</response>" in result
         assert "&amp;" in result
@@ -188,7 +193,7 @@ class TestRegressionBenchmarks:
     def test_malformed_attributes(self):
         """Benchmark repair of malformed attributes."""
         xml = "<root><item id=123 name=test>data</item></root>"
-        result = repair_xml_safe(xml)
+        result = repair_xml_safe(xml, trust=TrustLevel.TRUSTED)
         assert "<item" in result
 
     def test_conversational_fluff(self):
@@ -202,6 +207,6 @@ class TestRegressionBenchmarks:
 
         I hope this helps!
         """
-        result = repair_xml_safe(xml)
+        result = repair_xml_safe(xml, trust=TrustLevel.TRUSTED)
         assert "<root>" in result
         assert "requested" not in result  # Fluff removed

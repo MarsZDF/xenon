@@ -6,6 +6,7 @@ import unittest
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 from xenon import (
+    TrustLevel,
     ValidationError,
     parse_xml_safe,
     repair_xml_lenient,
@@ -20,32 +21,32 @@ class TestErrorHandling(unittest.TestCase):
         """Test that invalid input raises ValidationError with helpful message."""
         # None input
         with self.assertRaises(ValidationError) as cm:
-            repair_xml_safe(None)
+            repair_xml_safe(None, trust=TrustLevel.TRUSTED)
         self.assertIn("cannot be None", str(cm.exception))
 
         # Wrong type
         with self.assertRaises(ValidationError) as cm:
-            repair_xml_safe(123)
+            repair_xml_safe(123, trust=TrustLevel.TRUSTED)
         self.assertIn("must be a string", str(cm.exception))
 
     def test_empty_string_handling(self):
         """Test empty string validation and allow_empty flag."""
         # Empty raises by default
         with self.assertRaises(ValidationError):
-            repair_xml_safe("")
+            repair_xml_safe("", trust=TrustLevel.TRUSTED)
 
         # Works with allow_empty=True
-        result = repair_xml_safe("", allow_empty=True)
+        result = repair_xml_safe("", trust=TrustLevel.TRUSTED, allow_empty=True)
         self.assertEqual(result, "")
 
     def test_safe_mode_repairs_xml(self):
         """Test that safe mode repairs malformed XML correctly."""
-        result = repair_xml_safe("<root><item")
+        result = repair_xml_safe("<root><item", trust=TrustLevel.TRUSTED)
         self.assertEqual(result, "<root><item></item></root>")
 
     def test_parse_xml_safe(self):
         """Test that parse_xml_safe works correctly."""
-        result = parse_xml_safe("<root><item>test</item></root>")
+        result = parse_xml_safe("<root><item>test</item></root>", trust=TrustLevel.TRUSTED)
         self.assertEqual(result, {"root": {"item": "test"}})
 
     def test_lenient_mode_never_raises(self):

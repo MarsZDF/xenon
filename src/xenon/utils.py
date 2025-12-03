@@ -1,10 +1,13 @@
 """Utility functions for Xenon XML repair library."""
 
 import re
-from typing import Any, Callable, Iterator, List, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Callable, Iterator, List, Optional, Tuple
 
 from .encoding import detect_encoding
 from .reporting import RepairReport
+
+if TYPE_CHECKING:
+    from .trust import TrustLevel
 
 
 def decode_xml(xml_bytes: bytes, encoding: Optional[str] = None) -> str:
@@ -92,6 +95,7 @@ def batch_repair(
 
 def batch_repair_with_reports(
     xml_strings: List[str],
+    trust: "TrustLevel",
     *,
     show_progress: bool = False,
     filter_func: Optional[Callable[[RepairReport], bool]] = None,
@@ -101,6 +105,7 @@ def batch_repair_with_reports(
 
     Args:
         xml_strings: List of XML strings to repair
+        trust: Trust level of input sources
         show_progress: Show progress indicator (default: False)
         filter_func: Optional function to filter which results to return
                      based on the report (e.g., only return if repairs were made)
@@ -109,11 +114,13 @@ def batch_repair_with_reports(
         List of (repaired_xml, report) tuples
 
     Example:
+        >>> from xenon import TrustLevel
         >>> xml_batch = ['<root>test', '<item>data</item>']
-        >>> results = batch_repair_with_reports(xml_batch)
+        >>> results = batch_repair_with_reports(xml_batch, trust=TrustLevel.TRUSTED)
         >>> # Only get results where repairs were made
         >>> results_with_fixes = batch_repair_with_reports(
         ...     xml_batch,
+        ...     trust=TrustLevel.TRUSTED,
         ...     filter_func=lambda r: len(r) > 0
         ... )
     """
@@ -126,7 +133,7 @@ def batch_repair_with_reports(
         if show_progress and i % 100 == 0:
             print(f"Processing {i}/{total}...", end="\r")
 
-        repaired, report = repair_xml_with_report(xml_string)
+        repaired, report = repair_xml_with_report(xml_string, trust=trust)
 
         if filter_func is None or filter_func(report):
             results.append((repaired, report))

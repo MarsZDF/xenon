@@ -2,7 +2,7 @@
 
 import pytest
 
-from xenon import XenonException
+from xenon import TrustLevel, XenonException
 from xenon.utils import (
     batch_repair,
     batch_repair_with_reports,
@@ -49,7 +49,7 @@ class TestBatchRepair:
     def test_batch_repair_all_valid(self):
         """Test batch repair with all valid XML."""
         xml_batch = ["<root>item1</root>", "<root>item2</root>", "<root>item3</root>"]
-        results = batch_repair(xml_batch)
+        results = batch_repair(xml_batch, trust=TrustLevel.TRUSTED)
 
         assert len(results) == 3
         for xml, error in results:
@@ -59,7 +59,7 @@ class TestBatchRepair:
     def test_batch_repair_with_truncation(self):
         """Test batch repair with truncated XML."""
         xml_batch = ["<root>item1", "<root>item2</root>", "<root>item3"]
-        results = batch_repair(xml_batch)
+        results = batch_repair(xml_batch, trust=TrustLevel.TRUSTED)
 
         assert len(results) == 3
         for xml, error in results:
@@ -74,7 +74,7 @@ class TestBatchRepair:
             "<root>valid2</root>",
         ]
         # Use on_error='skip' to return original on error
-        results = batch_repair(xml_batch, on_error="skip")
+        results = batch_repair(xml_batch, trust=TrustLevel.TRUSTED, on_error="skip")
 
         assert len(results) == 3
         # First and third should succeed
@@ -89,7 +89,7 @@ class TestBatchRepair:
             "<root>valid</root>",
             None,  # Will cause error
         ]
-        results = batch_repair(xml_batch, on_error="return_empty")
+        results = batch_repair(xml_batch, trust=TrustLevel.TRUSTED, on_error="return_empty")
 
         assert len(results) == 2
         assert results[0][1] is None
@@ -103,17 +103,17 @@ class TestBatchRepair:
             None,  # Will cause error
         ]
         with pytest.raises(XenonException):
-            batch_repair(xml_batch, on_error="raise")
+            batch_repair(xml_batch, trust=TrustLevel.TRUSTED, on_error="raise")
 
     def test_batch_repair_passes_kwargs(self):
         """Test that kwargs are passed to repair function."""
         xml_batch = ["<root>item</root>"]
-        results = batch_repair(xml_batch, strict=False)
+        results = batch_repair(xml_batch, trust=TrustLevel.TRUSTED, strict=False)
         assert len(results) == 1
 
     def test_batch_repair_empty_list(self):
         """Test with empty input list."""
-        results = batch_repair([])
+        results = batch_repair([], trust=TrustLevel.TRUSTED)
         assert len(results) == 0
 
 
@@ -123,7 +123,7 @@ class TestBatchRepairWithReports:
     def test_batch_with_reports_basic(self):
         """Test basic batch repair with reports."""
         xml_batch = ["<root>item1</root>", "<root>item2"]
-        results = batch_repair_with_reports(xml_batch)
+        results = batch_repair_with_reports(xml_batch, trust=TrustLevel.TRUSTED)
 
         assert len(results) == 2
         for xml, report in results:
@@ -139,7 +139,9 @@ class TestBatchRepairWithReports:
         ]
 
         # Only return items that needed repairs
-        results = batch_repair_with_reports(xml_batch, filter_func=lambda r: len(r) > 0)
+        results = batch_repair_with_reports(
+            xml_batch, trust=TrustLevel.TRUSTED, filter_func=lambda r: len(r) > 0
+        )
 
         # Should only include the one that needed repair
         assert len(results) >= 1
@@ -151,7 +153,7 @@ class TestBatchRepairWithReports:
     def test_batch_with_reports_no_filter(self):
         """Test without filter (returns all)."""
         xml_batch = ["<root>item1</root>", "<root>item2"]
-        results = batch_repair_with_reports(xml_batch, filter_func=None)
+        results = batch_repair_with_reports(xml_batch, trust=TrustLevel.TRUSTED, filter_func=None)
 
         assert len(results) == 2
 
@@ -167,7 +169,7 @@ class TestStreamRepair:
             yield "<root>item2</root>"
             yield "<root>item3</root>"
 
-        results = list(stream_repair(xml_generator()))
+        results = list(stream_repair(xml_generator(), trust=TrustLevel.TRUSTED))
 
         assert len(results) == 3
         for xml, error in results:
@@ -182,7 +184,7 @@ class TestStreamRepair:
             yield None  # Will cause error
             yield "<root>valid2</root>"
 
-        results = list(stream_repair(xml_generator()))
+        results = list(stream_repair(xml_generator(), trust=TrustLevel.TRUSTED))
 
         assert len(results) == 3
         assert results[0][1] is None  # No error
@@ -197,7 +199,7 @@ class TestStreamRepair:
             yield "<root>item2"
             yield "<root>item3"
 
-        results = list(stream_repair(xml_generator()))
+        results = list(stream_repair(xml_generator(), trust=TrustLevel.TRUSTED))
 
         for xml, error in results:
             assert error is None
@@ -210,7 +212,7 @@ class TestStreamRepair:
             return
             yield  # Never reached
 
-        results = list(stream_repair(xml_generator()))
+        results = list(stream_repair(xml_generator(), trust=TrustLevel.TRUSTED))
         assert len(results) == 0
 
     def test_stream_repair_passes_kwargs(self):
@@ -219,7 +221,7 @@ class TestStreamRepair:
         def xml_generator():
             yield "<root>item</root>"
 
-        results = list(stream_repair(xml_generator(), strict=False))
+        results = list(stream_repair(xml_generator(), trust=TrustLevel.TRUSTED, strict=False))
         assert len(results) == 1
 
 

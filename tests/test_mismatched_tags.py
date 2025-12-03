@@ -2,7 +2,7 @@
 
 import pytest
 
-from xenon import repair_xml, repair_xml_safe
+from xenon import TrustLevel, repair_xml, repair_xml_safe
 
 
 class TestMismatchedTags:
@@ -11,37 +11,37 @@ class TestMismatchedTags:
     def test_single_character_typo(self):
         """Test fixing a single character typo in closing tag."""
         xml = "<mismatched>content</mismatchd>"
-        result = repair_xml(xml)
+        result = repair_xml(xml, trust=TrustLevel.TRUSTED)
         assert result == "<mismatched>content</mismatched>"
 
     def test_transposition_typo(self):
         """Test fixing letter transposition (2 char distance)."""
         xml = "<item>stuff</itme>"
-        result = repair_xml(xml)
+        result = repair_xml(xml, trust=TrustLevel.TRUSTED)
         assert result == "<item>stuff</item>"
 
     def test_missing_character(self):
         """Test fixing missing character in closing tag."""
         xml = "<veryLongTagName>content</veryLongTagNam>"
-        result = repair_xml(xml)
+        result = repair_xml(xml, trust=TrustLevel.TRUSTED)
         assert result == "<veryLongTagName>content</veryLongTagName>"
 
     def test_case_insensitive_still_works(self):
         """Test that case-insensitive matching still works (distance=0)."""
         xml = "<CamelCase>XML is case sensitive</camelcase>"
-        result = repair_xml(xml)
+        result = repair_xml(xml, trust=TrustLevel.TRUSTED)
         assert result == "<CamelCase>XML is case sensitive</CamelCase>"
 
     def test_nested_with_typo(self):
         """Test nested tags with typo in inner closing tag."""
         xml = "<root><item>data</itme></root>"
-        result = repair_xml(xml)
+        result = repair_xml(xml, trust=TrustLevel.TRUSTED)
         assert result == "<root><item>data</item></root>"
 
     def test_multiple_typos(self):
         """Test multiple mismatched tags in same document."""
         xml = "<root><item>one</itm><thing>two</thng></root>"
-        result = repair_xml(xml)
+        result = repair_xml(xml, trust=TrustLevel.TRUSTED)
         assert "</item>" in result
         assert "</thing>" in result
         assert "</root>" in result
@@ -49,7 +49,7 @@ class TestMismatchedTags:
     def test_beyond_threshold_not_matched(self):
         """Test that tags beyond threshold (>2 distance) are not auto-matched."""
         xml = "<opening>content</completely_different>"
-        result = repair_xml(xml)
+        result = repair_xml(xml, trust=TrustLevel.TRUSTED)
         # Should keep the wrong closing tag and auto-close opening
         assert "</completely_different>" in result
         assert "</opening>" in result
@@ -57,14 +57,14 @@ class TestMismatchedTags:
     def test_exact_match_preferred_over_similar(self):
         """Test that exact matches are preferred over similar ones."""
         xml = "<item><item2>content</item>"
-        result = repair_xml(xml)
+        result = repair_xml(xml, trust=TrustLevel.TRUSTED)
         # Should match the first <item>, not <item2> (distance=1)
         assert result == "<item><item2>content</item2></item>"
 
     def test_closest_match_on_stack(self):
         """Test that closest matching tag on stack is used."""
         xml = "<outer><middle><inner>text</inne></middle></outer>"
-        result = repair_xml(xml)
+        result = repair_xml(xml, trust=TrustLevel.TRUSTED)
         assert "</inner>" in result
         assert "</middle>" in result
         assert "</outer>" in result
@@ -79,7 +79,7 @@ class TestMismatchedTags:
         <role>User</role>
     </user>
 </usrs>"""
-        result = repair_xml(xml)
+        result = repair_xml(xml, trust=TrustLevel.TRUSTED)
         # Both typos should be fixed
         assert "</user>" in result
         assert "</users>" in result
@@ -96,7 +96,7 @@ class TestMismatchedTags:
         xml = open_tags + "content" + close_tags
 
         start = time.time()
-        result = repair_xml(xml)
+        result = repair_xml(xml, trust=TrustLevel.TRUSTED)
         elapsed = time.time() - start
 
         # Should complete in under 50ms (generous for CI/slower machines)
@@ -108,7 +108,7 @@ class TestMismatchedTags:
     def test_safe_mode_with_mismatches(self):
         """Test that mismatched tag detection works with safe mode."""
         xml = "<root><item>data</itme></root>"
-        result = repair_xml_safe(xml)
+        result = repair_xml_safe(xml, trust=TrustLevel.TRUSTED)
         assert result == "<root><item>data</item></root>"
 
     def test_threshold_configurable(self):
@@ -146,5 +146,5 @@ class TestMismatchedTags:
     def test_no_false_positives(self):
         """Test that valid XML is not modified incorrectly."""
         xml = "<root><item>one</item><item>two</item></root>"
-        result = repair_xml(xml)
+        result = repair_xml(xml, trust=TrustLevel.TRUSTED)
         assert result == xml  # Should be unchanged

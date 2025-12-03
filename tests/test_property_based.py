@@ -9,6 +9,7 @@ from hypothesis import strategies as st
 from hypothesis.strategies import composite, integers, text
 
 from xenon import (
+    TrustLevel,
     parse_xml,
     parse_xml_lenient,
     parse_xml_safe,
@@ -96,7 +97,7 @@ class TestPropertyBasedRobustness:
     @settings(max_examples=100, deadline=None)
     def test_well_formed_xml_unchanged(self, xml):
         """Well-formed XML should pass through unchanged (modulo whitespace)."""
-        result = repair_xml(xml)
+        result = repair_xml(xml, trust=TrustLevel.TRUSTED)
         # The content should be preserved
         assert all(part in result for part in ["<", ">"])
 
@@ -104,15 +105,15 @@ class TestPropertyBasedRobustness:
     @settings(max_examples=100, deadline=None)
     def test_idempotency(self, xml):
         """Repairing twice should be the same as repairing once."""
-        first_repair = repair_xml(xml)
-        second_repair = repair_xml(first_repair)
+        first_repair = repair_xml(xml, trust=TrustLevel.TRUSTED)
+        second_repair = repair_xml(first_repair, trust=TrustLevel.TRUSTED)
         assert first_repair == second_repair
 
     @given(truncated_xml())
     @settings(max_examples=100, deadline=None)
     def test_truncated_xml_gets_closed(self, xml):
         """Truncated XML should get closing tags added."""
-        result = repair_xml(xml)
+        result = repair_xml(xml, trust=TrustLevel.TRUSTED)
         # Result should have balanced tags or be empty
         assert isinstance(result, str)
         # Should have added closing tags
@@ -134,7 +135,7 @@ class TestPropertyBasedCorrectness:
         """Unquoted attribute values should get quoted."""
         # Use safe alphabet that doesn't need escaping
         xml = f"<{tag} attr={value}></{tag}>"
-        result = repair_xml(xml)
+        result = repair_xml(xml, trust=TrustLevel.TRUSTED)
 
         # Value should be quoted (either as-is or escaped)
         assert 'attr="' in result or "attr='" in result or f"attr={value}" in result
@@ -146,7 +147,7 @@ class TestPropertyBasedCorrectness:
         # Add special chars to content
         test_content = f"{content} < & >"
         xml = f"<{tag}>{test_content}</{tag}>"
-        result = repair_xml(xml)
+        result = repair_xml(xml, trust=TrustLevel.TRUSTED)
 
         # Special chars should be escaped (unless in CDATA)
         if "<![CDATA[" not in result:
@@ -157,7 +158,7 @@ class TestPropertyBasedCorrectness:
     def test_safe_mode_type_checking(self, input_str):
         """repair_xml_safe should validate input types."""
         # String input should work
-        result = repair_xml_safe(input_str, allow_empty=True)
+        result = repair_xml_safe(input_str, trust=TrustLevel.TRUSTED, allow_empty=True)
         assert isinstance(result, str)
 
     @given(st.integers() | st.booleans() | st.lists(st.text()))
@@ -165,7 +166,7 @@ class TestPropertyBasedCorrectness:
     def test_safe_mode_rejects_wrong_types(self, invalid_input):
         """repair_xml_safe should reject non-string inputs."""
         with pytest.raises(Exception):  # Should raise ValidationError
-            repair_xml_safe(invalid_input, allow_empty=False)
+            repair_xml_safe(invalid_input, trust=TrustLevel.TRUSTED, allow_empty=False)
 
 
 class TestPropertyBasedSecurity:
@@ -176,7 +177,7 @@ class TestPropertyBasedSecurity:
     def test_dangerous_pis_can_be_stripped(self, tag, content):
         """Dangerous processing instructions can be stripped."""
         xml = f'<?php echo "danger"; ?><{tag}>{content}</{tag}>'
-        result = repair_xml_safe(xml, strip_dangerous_pis=True)
+        result = repair_xml_safe(xml, trust=TrustLevel.TRUSTED, strip_dangerous_pis=True)
 
         # PHP PI should be removed
         assert "<?php" not in result
@@ -186,7 +187,7 @@ class TestPropertyBasedSecurity:
     def test_dangerous_tags_can_be_stripped(self, tag, content):
         """Dangerous tags like <script> can be stripped."""
         xml = f'<script>alert("xss")</script><{tag}>{content}</{tag}>'
-        result = repair_xml_safe(xml, strip_dangerous_tags=True)
+        result = repair_xml_safe(xml, trust=TrustLevel.TRUSTED, strip_dangerous_tags=True)
 
         # Script tag should be removed
         assert "<script>" not in result.lower()
@@ -203,7 +204,7 @@ class TestPropertyBasedCDATA:
         test_content = f"{code_content} > 5"
 
         xml = f"<code>{test_content}</code>"
-        result = repair_xml_safe(xml, auto_wrap_cdata=True)
+        result = repair_xml_safe(xml, trust=TrustLevel.TRUSTED, auto_wrap_cdata=True)
 
         # Original content should be preserved in result (possibly in CDATA)
         if "<![CDATA[" in result:
@@ -221,7 +222,7 @@ class TestPropertyBasedCDATA:
         assume(not any(c in simple_text for c in ["&", "<", ">"]))
 
         xml = f"<code>{simple_text}</code>"
-        result = repair_xml_safe(xml, auto_wrap_cdata=True)
+        result = repair_xml_safe(xml, trust=TrustLevel.TRUSTED, auto_wrap_cdata=True)
 
         # Should not use CDATA for simple text
         assert "<![CDATA[" not in result
@@ -234,12 +235,14 @@ class TestPropertyBasedCDATA:
 
         # Test with code tag
         xml_code = f"<{code_tag}>{code_content}</{code_tag}>"
-        result_code = repair_xml_safe(xml_code, auto_wrap_cdata=True)
+        result_code = repair_xml_safe(xml_code, trust=TrustLevel.TRUSTED, auto_wrap_cdata=True)
         assert "<![CDATA[" in result_code
 
         # Test with regular tag
         xml_regular = f"<div>{code_content}</div>"
-        result_regular = repair_xml_safe(xml_regular, auto_wrap_cdata=True)
+        result_regular = repair_xml_safe(
+            xml_regular, trust=TrustLevel.TRUSTED, auto_wrap_cdata=True
+        )
         assert "<![CDATA[" not in result_regular
 
 
@@ -251,14 +254,14 @@ class TestPropertyBasedEdgeCases:
     def test_empty_string_handling(self, empty):
         """Empty strings should be handled gracefully."""
         assert empty == ""
-        result = repair_xml_safe(empty, allow_empty=True)
+        result = repair_xml_safe(empty, trust=TrustLevel.TRUSTED, allow_empty=True)
         assert result == ""
 
     @given(st.text(alphabet=" \n\t\r", min_size=1, max_size=20))
     @settings(max_examples=20, deadline=None)
     def test_whitespace_only_handling(self, whitespace):
         """Whitespace-only strings should be handled."""
-        result = repair_xml_safe(whitespace, allow_empty=True)
+        result = repair_xml_safe(whitespace, trust=TrustLevel.TRUSTED, allow_empty=True)
         assert isinstance(result, str)
 
     @given(st.integers(min_value=1, max_value=10))
@@ -270,7 +273,7 @@ class TestPropertyBasedEdgeCases:
         xml += "content"
         # Intentionally truncate (don't close tags)
 
-        result = repair_xml(xml)
+        result = repair_xml(xml, trust=TrustLevel.TRUSTED)
         # Should close all tags
         assert isinstance(result, str)
         assert "content" in result
@@ -280,7 +283,7 @@ class TestPropertyBasedEdgeCases:
     def test_multiple_roots_can_be_wrapped(self, tag_list):
         """Multiple root elements can be wrapped."""
         xml = "".join([f"<{tag}>data</{tag}>" for tag in tag_list])
-        result = repair_xml_safe(xml, wrap_multiple_roots=True)
+        result = repair_xml_safe(xml, trust=TrustLevel.TRUSTED, wrap_multiple_roots=True)
 
         # Should wrap in <document>
         assert "<document>" in result

@@ -1,9 +1,12 @@
 import re
-from typing import Any, Dict, List, Match, Optional, Tuple
+from typing import TYPE_CHECKING, Any, Dict, List, Match, Optional, Tuple
 
 from .config import RepairFlags, SecurityFlags, XMLRepairConfig
 from .preprocessor import XMLPreprocessor
 from .security import XMLSecurityFilter
+
+if TYPE_CHECKING:
+    from .trust import TrustLevel
 
 
 class XMLToken:
@@ -45,6 +48,7 @@ class XMLRepairEngine:
         sanitize_invalid_tags: bool = False,
         fix_namespace_syntax: bool = False,
         auto_wrap_cdata: bool = False,
+        max_depth: Optional[int] = None,
     ):
         """
         Initialize XML repair engine.
@@ -71,6 +75,9 @@ class XMLRepairEngine:
             auto_wrap_cdata: Automatically wrap code-like content in CDATA sections.
                             Detects tags like <code>, <script>, <pre> with special characters.
                             Default False for backward compatibility.
+            max_depth: Maximum XML nesting depth allowed. Prevents DoS attacks via deeply nested XML.
+                      None = unlimited (default for backward compatibility).
+                      Recommended: 1000 for untrusted input, 10000 for internal use.
 
         Examples:
             >>> # Using config object (recommended)
@@ -99,6 +106,7 @@ class XMLRepairEngine:
 
         self.config = config
         self.state = XMLParseState()
+        self.max_depth = max_depth
 
         # Initialize components
         self.preprocessor = XMLPreprocessor(config)
@@ -130,6 +138,45 @@ class XMLRepairEngine:
             "regex",
         }
 
+    @classmethod
+    def from_trust_level(cls, trust: "TrustLevel") -> "XMLRepairEngine":
+        """
+        Create XMLRepairEngine configured for a specific trust level.
+
+        This factory method creates an engine with security settings appropriate
+        for the given trust level. It's the recommended way to create engines
+        when you want trust-based security presets.
+
+        Args:
+            trust: TrustLevel indicating the security posture to use
+
+        Returns:
+            XMLRepairEngine configured with appropriate security settings
+
+        Examples:
+            >>> from xenon import XMLRepairEngine, TrustLevel
+            >>>
+            >>> # Maximum security for untrusted input
+            >>> engine = XMLRepairEngine.from_trust_level(TrustLevel.UNTRUSTED)
+            >>> engine.strip_dangerous_pis
+            True
+            >>>
+            >>> # No security overhead for trusted input
+            >>> engine = XMLRepairEngine.from_trust_level(TrustLevel.TRUSTED)
+            >>> engine.strip_dangerous_pis
+            False
+        """
+        from xenon.trust import get_security_config
+
+        config_obj = get_security_config(trust)
+
+        return cls(
+            strip_dangerous_pis=config_obj.strip_dangerous_pis,
+            strip_external_entities=config_obj.strip_external_entities,
+            strip_dangerous_tags=config_obj.strip_dangerous_tags,
+            max_depth=config_obj.max_depth,
+        )
+
     def _is_cdata_candidate_tag(self, tag_name: str) -> bool:
         """
         Check if tag name is a candidate for CDATA wrapping.
@@ -141,6 +188,27 @@ class XMLRepairEngine:
             True if tag commonly contains code or special characters
         """
         return tag_name.lower() in self.CDATA_CANDIDATE_TAGS
+
+    def _check_max_depth(self, tag_stack: List[Tuple[str, str]]) -> None:
+        """
+        Check if current nesting depth exceeds max_depth limit.
+
+        Args:
+            tag_stack: Current tag stack
+
+        Raises:
+            SecurityError: If depth exceeds max_depth
+        """
+        if self.max_depth is not None and len(tag_stack) > self.max_depth:
+            from .exceptions import SecurityError
+
+            raise SecurityError(
+                f"Maximum nesting depth {self.max_depth} exceeded. "
+                f"Current depth: {len(tag_stack)}. "
+                f"This may indicate a DoS attack via malicious input, "
+                f"runaway LLM generation, or legitimate deep nesting. "
+                f"Override with max_depth={len(tag_stack) + 1000} if this is expected."
+            )
 
     def _content_needs_cdata(self, content: str) -> bool:
         """
@@ -915,6 +983,7 @@ class XMLRepairEngine:
 
                 if tag_name:
                     tag_stack.append((tag_name, tag_name.lower()))
+                    self._check_max_depth(tag_stack)
                     # Check if this is a CDATA candidate tag
                     in_cdata_candidate = self._is_cdata_candidate_tag(tag_name)
                     i += 1  # Skip the tag_name token
@@ -980,6 +1049,7 @@ class XMLRepairEngine:
                 if i + 1 < len(tokens) and tokens[i + 1].type == "tag_name":
                     tag_name = tokens[i + 1].content
                     tag_stack.append((tag_name, tag_name.lower()))
+                    self._check_max_depth(tag_stack)
                     i += 1  # Skip the tag_name token
             elif token.type == "text":
                 # Buffer text content if we're in a CDATA candidate tag

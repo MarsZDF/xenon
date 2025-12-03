@@ -100,6 +100,27 @@ class RepairError(XenonException):
     pass
 
 
+class SecurityError(XenonException):
+    """
+    Raised when security limits are exceeded (v1.0.0).
+
+    This exception indicates that the XML input has triggered security
+    protections such as:
+    - Maximum nesting depth exceeded (DoS prevention)
+    - Entity expansion limit exceeded (billion laughs attack)
+    - Other security circuit breakers
+
+    The specific limit and recommended action will be in the error message.
+
+    Examples:
+        - XML nested deeper than max_depth for the trust level
+        - Excessive entity expansion detected
+        - Input size exceeds safety threshold
+    """
+
+    pass
+
+
 def get_context_snippet(text: str, position: int, max_length: int = 50) -> str:
     """
     Extract a context snippet around a position in text.
@@ -160,3 +181,14 @@ def get_line_column(text: str, position: int) -> Tuple[int, int]:
     column = position - line_start + 1
 
     return (line, column)
+
+
+__all__ = [
+    "XenonException",
+    "ValidationError",
+    "MalformedXMLError",
+    "RepairError",
+    "SecurityError",
+    "get_context_snippet",
+    "get_line_column",
+]
