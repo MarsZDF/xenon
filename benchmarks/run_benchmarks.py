@@ -13,7 +13,7 @@ from pathlib import Path
 # Add src to path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from xenon import repair_xml, repair_xml_safe, parse_xml, repair_xml_with_report
+from xenon import repair_xml, repair_xml_safe, parse_xml, repair_xml_with_report, TrustLevel
 from xenon.utils import batch_repair, validate_xml_structure
 
 
@@ -89,53 +89,53 @@ def main():
 
     # Category 1: Basic Repair Operations
     print("\nRunning basic repair benchmarks...")
-    runner.benchmark("repair_xml() - Small truncated", repair_xml, SMALL_TRUNCATED)
-    runner.benchmark("repair_xml() - Medium truncated", repair_xml, MEDIUM_TRUNCATED)
-    runner.benchmark("repair_xml() - Large truncated", repair_xml, LARGE_TRUNCATED)
+    runner.benchmark("repair_xml() - Small truncated", repair_xml, SMALL_TRUNCATED, TrustLevel.TRUSTED)
+    runner.benchmark("repair_xml() - Medium truncated", repair_xml, MEDIUM_TRUNCATED, TrustLevel.TRUSTED)
+    runner.benchmark("repair_xml() - Large truncated", repair_xml, LARGE_TRUNCATED, TrustLevel.TRUSTED)
 
     # Category 2: Entity Escaping
     print("Running entity escaping benchmarks...")
-    runner.benchmark("repair_xml() - Small with entities", repair_xml, SMALL_WITH_ENTITIES)
-    runner.benchmark("repair_xml() - Medium with entities", repair_xml, MEDIUM_WITH_ENTITIES)
-    runner.benchmark("repair_xml() - Large with entities", repair_xml, LARGE_WITH_ENTITIES)
+    runner.benchmark("repair_xml() - Small with entities", repair_xml, SMALL_WITH_ENTITIES, TrustLevel.TRUSTED)
+    runner.benchmark("repair_xml() - Medium with entities", repair_xml, MEDIUM_WITH_ENTITIES, TrustLevel.TRUSTED)
+    runner.benchmark("repair_xml() - Large with entities", repair_xml, LARGE_WITH_ENTITIES, TrustLevel.TRUSTED)
 
     # Category 3: Attribute Repair
     print("Running attribute repair benchmarks...")
-    runner.benchmark("repair_xml() - Small malformed attrs", repair_xml, SMALL_MALFORMED_ATTRS)
-    runner.benchmark("repair_xml() - Medium malformed attrs", repair_xml, MEDIUM_MALFORMED_ATTRS)
-    runner.benchmark("repair_xml() - Large malformed attrs", repair_xml, LARGE_MALFORMED_ATTRS)
+    runner.benchmark("repair_xml() - Small malformed attrs", repair_xml, SMALL_MALFORMED_ATTRS, TrustLevel.TRUSTED)
+    runner.benchmark("repair_xml() - Medium malformed attrs", repair_xml, MEDIUM_MALFORMED_ATTRS, TrustLevel.TRUSTED)
+    runner.benchmark("repair_xml() - Large malformed attrs", repair_xml, LARGE_MALFORMED_ATTRS, TrustLevel.TRUSTED)
 
     # Category 4: Tag Name Sanitization
     print("Running tag sanitization benchmarks...")
     runner.benchmark("repair_xml_safe() - Small invalid tags",
-                    repair_xml_safe, SMALL_INVALID_TAGS, sanitize_invalid_tags=True)
+                    repair_xml_safe, SMALL_INVALID_TAGS, TrustLevel.TRUSTED, sanitize_invalid_tags=True)
     runner.benchmark("repair_xml_safe() - Medium invalid tags",
-                    repair_xml_safe, MEDIUM_INVALID_TAGS, sanitize_invalid_tags=True)
+                    repair_xml_safe, MEDIUM_INVALID_TAGS, TrustLevel.TRUSTED, sanitize_invalid_tags=True)
 
     # Category 5: Well-Formed XML (No Repairs Needed)
     print("Running well-formed XML benchmarks...")
-    runner.benchmark("repair_xml() - Well-formed (noop)", repair_xml, WELL_FORMED)
-    runner.benchmark("repair_xml() - Complex well-formed", repair_xml, COMPLEX_WELL_FORMED)
+    runner.benchmark("repair_xml() - Well-formed (noop)", repair_xml, WELL_FORMED, TrustLevel.TRUSTED)
+    runner.benchmark("repair_xml() - Complex well-formed", repair_xml, COMPLEX_WELL_FORMED, TrustLevel.TRUSTED)
 
     # Category 6: Multiple Issues
     print("Running complex repair benchmarks...")
-    runner.benchmark("repair_xml() - Multiple issues", repair_xml, MULTIPLE_ISSUES)
+    runner.benchmark("repair_xml() - Multiple issues", repair_xml, MULTIPLE_ISSUES, TrustLevel.TRUSTED)
 
     # Category 7: Advanced Functions
     print("Running advanced function benchmarks...")
-    runner.benchmark("repair_xml_with_report() - Small", repair_xml_with_report, SMALL_TRUNCATED)
-    runner.benchmark("parse_xml() - Well-formed", parse_xml, WELL_FORMED)
+    runner.benchmark("repair_xml_with_report() - Small", repair_xml_with_report, SMALL_TRUNCATED, TrustLevel.TRUSTED)
+    runner.benchmark("parse_xml() - Well-formed", parse_xml, WELL_FORMED, TrustLevel.TRUSTED)
     runner.benchmark("validate_xml_structure() - Well-formed", validate_xml_structure, WELL_FORMED)
 
     # Category 8: Batch Operations
     print("Running batch operation benchmarks...")
-    runner.benchmark("batch_repair() - 10 items", batch_repair, BATCH_SMALL, iterations=100)
-    runner.benchmark("batch_repair() - 100 items", batch_repair, BATCH_MEDIUM, iterations=10)
+    runner.benchmark("batch_repair() - 10 items", batch_repair, BATCH_SMALL, iterations=100, trust=TrustLevel.TRUSTED)
+    runner.benchmark("batch_repair() - 100 items", batch_repair, BATCH_MEDIUM, iterations=10, trust=TrustLevel.TRUSTED)
 
     # Category 9: Safe vs. Regular
     print("Running safe vs regular benchmarks...")
-    runner.benchmark("repair_xml() - Small", repair_xml, SMALL_TRUNCATED)
-    runner.benchmark("repair_xml_safe() - Small", repair_xml_safe, SMALL_TRUNCATED)
+    runner.benchmark("repair_xml() - Small", repair_xml, SMALL_TRUNCATED, TrustLevel.TRUSTED)
+    runner.benchmark("repair_xml_safe() - Small", repair_xml_safe, SMALL_TRUNCATED, TrustLevel.TRUSTED)
 
     # Print results
     runner.print_results()
