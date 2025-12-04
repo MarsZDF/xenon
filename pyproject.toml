@@ -57,6 +57,7 @@ dev = [
     "python-semantic-release>=8.0",
     "commitizen>=3.0",
     "bandit>=1.7.0",
+    "types-lxml>=2024.0.0",
 ]
 
 [project.urls]
