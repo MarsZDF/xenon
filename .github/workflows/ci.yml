@@ -63,7 +63,7 @@ jobs:
           pip install -e ".[dev]"
 
       - name: Run tests
-        run: pytest tests/ -v --tb=short --cov=xenon --cov-report=xml --cov-report=term
+        run: pytest tests/ -v --tb=short --cov=xenon --cov-report=xml --cov-report=term -p no:sugar
 
       - name: Upload coverage to Codecov
         if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.11'
