@@ -30,7 +30,6 @@ llm_responses = {
             <name>Bob</name>
             <email>bob@example.com
     """,
-
     "conversational": """
     Of course! I'll extract that information for you. Let me format it as XML:
 
@@ -47,7 +46,6 @@ llm_responses = {
 
     Does this look good? Let me know if you need any changes!
     """,
-
     "malformed_attributes": """
     <config>
         <database host=localhost port=5432 name=mydb>
@@ -56,7 +54,6 @@ llm_responses = {
         <cache enabled=true ttl=3600/>
     </config>
     """,
-
     "unescaped_entities": """
     <reviews>
         <review id="1">
@@ -169,7 +166,7 @@ llm_batch = [
 ]
 
 # Repair all at once
-results = batch_repair(llm_batch, on_error='skip')
+results = batch_repair(llm_batch, on_error="skip")
 
 successful_repairs = sum(1 for _, error in results if error is None)
 print(f"Successfully repaired {successful_repairs}/{len(llm_batch)} responses")
@@ -177,9 +174,9 @@ print(f"Successfully repaired {successful_repairs}/{len(llm_batch)} responses")
 for i, (repaired, error) in enumerate(results):
     if error is None:
         parsed = parse_xml(repaired)
-        print(f"\nBatch item {i+1}: ✓ Parsed successfully")
+        print(f"\nBatch item {i + 1}: ✓ Parsed successfully")
     else:
-        print(f"\nBatch item {i+1}: ✗ Error: {error}")
+        print(f"\nBatch item {i + 1}: ✗ Error: {error}")
 
 # Example 5: Streaming LLM Responses
 print("\n5. Processing Streaming LLM Responses")
@@ -192,9 +189,9 @@ def llm_stream_generator():
     """Simulate a streaming LLM response."""
     # In real code, this would be a streaming API response
     responses = [
-        '<item>first</item>',
-        '<item>second',  # Incomplete
-        '<item>third</item>',
+        "<item>first</item>",
+        "<item>second",  # Incomplete
+        "<item>third</item>",
     ]
     for response in responses:
         yield response
@@ -224,10 +221,7 @@ potentially_malicious = """
 
 # Use security features
 safe_output = repair_xml_safe(
-    potentially_malicious,
-    strip_dangerous_pis=True,
-    strip_dangerous_tags=True,
-    strict=True
+    potentially_malicious, strip_dangerous_pis=True, strip_dangerous_tags=True, strict=True
 )
 
 print("Input contained potentially dangerous content")

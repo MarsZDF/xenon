@@ -2,9 +2,10 @@
 Async LLM Integration Examples for Xenon.
 
 This module demonstrates how to integrate Xenon's async streaming repair
-with popular async LLM SDKs (OpenAI, Anthropic, LangChain).
+with any async LLM SDK or streaming data source.
 
-These examples show real-world usage patterns for production applications.
+These examples show real-world usage patterns for production applications
+using generic async patterns that work with any provider.
 """
 
 import asyncio
@@ -15,52 +16,39 @@ from xenon.streaming import StreamingXMLRepair
 
 
 # =============================================================================
-# Example 1: OpenAI Async Streaming
+# Example 1: Generic Async LLM Streaming
 # =============================================================================
 
 
-async def openai_xml_streaming_example():
+async def async_llm_streaming_example():
     """
-    Example: Repair XML from OpenAI streaming chat completion.
+    Example: Repair XML from any async LLM streaming API.
 
-    This pattern works with OpenAI's async streaming API, ensuring
-    malformed XML is repaired token-by-token as it arrives.
+    This pattern works with any async streaming API that yields text chunks.
+    Compatible with OpenAI, Anthropic, Cohere, or any AsyncIterator[str] source.
     """
     print("=" * 80)
-    print("Example 1: OpenAI Async Streaming")
+    print("Example 1: Generic Async LLM Streaming")
     print("=" * 80)
 
-    # NOTE: Requires: pip install openai
-    # Uncomment to use with real OpenAI API:
+    # Generic pattern - works with ANY async LLM SDK:
     """
-    from openai import AsyncOpenAI
+    # Pattern for any async LLM SDK:
+    async def your_llm_stream() -> AsyncIterator[str]:
+        # Your LLM API call here (OpenAI, Anthropic, Cohere, etc.)
+        async for chunk in llm_client.stream(...):
+            yield chunk.text  # or chunk.content, chunk.delta, etc.
 
-    client = AsyncOpenAI(api_key="your-api-key")
-
-    # Request XML from GPT-4
-    stream = await client.chat.completions.create(
-        model="gpt-4",
-        messages=[
-            {"role": "system", "content": "You are an XML generator. Output only valid XML."},
-            {"role": "user", "content": "Generate an XML document with user data"}
-        ],
-        stream=True
-    )
-
-    # Repair XML as it streams in
+    # Repair the stream:
     async with StreamingXMLRepair(trust=TrustLevel.UNTRUSTED) as repairer:
-        async for chunk in stream:
-            if chunk.choices[0].delta.content:
-                content = chunk.choices[0].delta.content
-                async for safe_xml in repairer.feed_async(content):
-                    print(safe_xml, end='', flush=True)
-
-    print()  # Newline after stream completes
+        async for chunk in your_llm_stream():
+            async for safe_xml in repairer.feed_async(chunk):
+                print(safe_xml, end='', flush=True)
     """
 
-    # Simulated OpenAI stream for demonstration
-    async def mock_openai_stream() -> AsyncIterator[str]:
-        """Simulate OpenAI streaming response."""
+    # Simulated LLM stream for demonstration
+    async def mock_llm_stream() -> AsyncIterator[str]:
+        """Simulate any LLM streaming response."""
         chunks = [
             "Here's your XML:\n\n",  # Conversational fluff
             "<users>\n",
@@ -82,7 +70,7 @@ async def openai_xml_streaming_example():
     print("-" * 40)
 
     async with StreamingXMLRepair(trust=TrustLevel.UNTRUSTED) as repairer:
-        async for chunk in mock_openai_stream():
+        async for chunk in mock_llm_stream():
             async for safe_xml in repairer.feed_async(chunk):
                 print(safe_xml, end="", flush=True)
 
@@ -91,45 +79,23 @@ async def openai_xml_streaming_example():
 
 
 # =============================================================================
-# Example 2: Anthropic Claude Async Streaming
+# Example 2: Async Streaming with Error Recovery
 # =============================================================================
 
 
-async def anthropic_xml_streaming_example():
+async def error_recovery_streaming_example():
     """
-    Example: Repair XML from Anthropic Claude streaming.
+    Example: Handle malformed XML with real-time repair.
 
-    Demonstrates integration with Anthropic's async message stream API.
+    Shows how Xenon repairs common LLM mistakes on-the-fly.
     """
     print("=" * 80)
-    print("Example 2: Anthropic Claude Async Streaming")
+    print("Example 2: Real-Time Error Recovery")
     print("=" * 80)
 
-    # NOTE: Requires: pip install anthropic
-    # Uncomment to use with real Anthropic API:
-    """
-    import anthropic
-
-    client = anthropic.AsyncAnthropic(api_key="your-api-key")
-
-    async with client.messages.stream(
-        model="claude-3-5-sonnet-20241022",
-        max_tokens=1024,
-        messages=[
-            {"role": "user", "content": "Generate XML for a product catalog with 3 items"}
-        ]
-    ) as stream:
-        async with StreamingXMLRepair(trust=TrustLevel.UNTRUSTED) as repairer:
-            async for text in stream.text_stream:
-                async for safe_xml in repairer.feed_async(text):
-                    print(safe_xml, end='', flush=True)
-
-    print()
-    """
-
-    # Simulated Claude stream for demonstration
-    async def mock_claude_stream() -> AsyncIterator[str]:
-        """Simulate Claude streaming response."""
+    # Simulated LLM stream with various errors
+    async def mock_error_stream() -> AsyncIterator[str]:
+        """Simulate LLM stream with common XML errors."""
         chunks = [
             "I'll create an XML catalog for you:\n\n",
             "<?xml version=1.0?>",  # Malformed: missing quotes
@@ -143,65 +109,40 @@ async def anthropic_xml_streaming_example():
             await asyncio.sleep(0.01)
             yield chunk
 
+    print("\nInput errors:")
+    print("  - Missing quotes in XML declaration")
+    print("  - Unquoted attributes (id=101, currency=USD)")
+    print("  - Unescaped ampersand (&)")
+    print("  - Missing closing tags (truncation)")
     print("\nStreaming repaired XML:")
     print("-" * 40)
 
     async with StreamingXMLRepair(trust=TrustLevel.UNTRUSTED) as repairer:
-        async for chunk in mock_claude_stream():
+        async for chunk in mock_error_stream():
             async for safe_xml in repairer.feed_async(chunk):
                 print(safe_xml, end="", flush=True)
 
     print("\n" + "-" * 40)
-    print("✅ Stream completed\n")
+    print("✅ All errors auto-repaired during streaming\n")
 
 
 # =============================================================================
-# Example 3: LangChain Async Integration
+# Example 3: Async Pipeline Integration
 # =============================================================================
 
 
-async def langchain_xml_repair_example():
+async def async_pipeline_example():
     """
-    Example: Use Xenon in LangChain async chains.
+    Example: Use Xenon in async processing pipelines.
 
-    Shows how to create a custom LangChain runnable that repairs XML.
+    Shows how to integrate with async frameworks and chains.
     """
     print("=" * 80)
-    print("Example 3: LangChain Async Chain with XML Repair")
+    print("Example 3: Async Processing Pipeline")
     print("=" * 80)
 
-    # NOTE: Requires: pip install langchain langchain-openai
-    # Uncomment to use with real LangChain:
-    """
-    from langchain_openai import ChatOpenAI
-    from langchain.schema import HumanMessage
-    from langchain.schema.runnable import RunnableLambda
-
-    # Create LLM
-    llm = ChatOpenAI(model="gpt-4", streaming=True)
-
-    # Custom XML repair runnable
-    async def repair_xml_streaming(message_stream):
-        async with StreamingXMLRepair(trust=TrustLevel.UNTRUSTED) as repairer:
-            async for chunk in message_stream:
-                if hasattr(chunk, 'content'):
-                    async for safe_xml in repairer.feed_async(chunk.content):
-                        yield safe_xml
-
-    # Build chain: LLM -> XML Repair
-    chain = llm | RunnableLambda(repair_xml_streaming)
-
-    # Execute
-    async for repaired_chunk in chain.astream(
-        HumanMessage(content="Generate XML for a todo list")
-    ):
-        print(repaired_chunk, end='', flush=True)
-
-    print()
-    """
-
-    # Simulated LangChain stream for demonstration
-    async def mock_langchain_llm_stream():
+    # Generic async pipeline pattern (works with LangChain, custom pipelines, etc.)
+    async def mock_pipeline_stream():
         """Simulate LangChain LLM streaming."""
         chunks = [
             "<todos>\n",
@@ -215,11 +156,11 @@ async def langchain_xml_repair_example():
             await asyncio.sleep(0.01)
             yield chunk
 
-    print("\nLangChain chain output (with XML repair):")
+    print("\nAsync pipeline output (with XML repair):")
     print("-" * 40)
 
     async with StreamingXMLRepair(trust=TrustLevel.UNTRUSTED) as repairer:
-        async for chunk in mock_langchain_llm_stream():
+        async for chunk in mock_pipeline_stream():
             async for safe_xml in repairer.feed_async(chunk):
                 print(safe_xml, end="", flush=True)
 
@@ -265,9 +206,7 @@ async def concurrent_stream_repair_example():
     print("\nProcessing 5 streams concurrently...")
 
     # Run all streams concurrently
-    tasks = [
-        process_llm_stream(stream_id, chunks) for stream_id, chunks in streams.items()
-    ]
+    tasks = [process_llm_stream(stream_id, chunks) for stream_id, chunks in streams.items()]
 
     results = await asyncio.gather(*tasks)
 
@@ -362,8 +301,8 @@ async def performance_monitoring_example():
     print(f"Chunks processed:    {chunks_processed}")
     print(f"Bytes processed:     {bytes_processed}")
     print(f"Total time:          {elapsed:.3f}s")
-    print(f"Throughput:          {chunks_processed/elapsed:.0f} chunks/sec")
-    print(f"Throughput:          {bytes_processed/elapsed/1024:.1f} KB/sec")
+    print(f"Throughput:          {chunks_processed / elapsed:.0f} chunks/sec")
+    print(f"Throughput:          {bytes_processed / elapsed / 1024:.1f} KB/sec")
     print("-" * 40)
     print("✅ High performance maintained\n")
 
@@ -380,9 +319,9 @@ async def main():
     print("=" * 80 + "\n")
 
     # Run examples
-    await openai_xml_streaming_example()
-    await anthropic_xml_streaming_example()
-    await langchain_xml_repair_example()
+    await async_llm_streaming_example()
+    await error_recovery_streaming_example()
+    await async_pipeline_example()
     await concurrent_stream_repair_example()
     await error_handling_example()
     await performance_monitoring_example()

@@ -12,13 +12,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `feed_async()`: Async variant of `feed()` for use with `async for` loops
   - `finalize_async()`: Async variant of `finalize()`
   - Async context manager support (`async with StreamingXMLRepair(...)`)
-  - Fully compatible with async LLM SDKs (OpenAI, Anthropic, LangChain async chains)
+  - Fully compatible with any async LLM SDK or streaming framework
   - Zero blocking - yields control to event loop for responsive concurrent operations
   - 18 comprehensive async tests ensuring reliability
 - **Integration Examples**: New `examples/04_async_llm_integration.py` with 6 real-world patterns:
-  - OpenAI async streaming integration
-  - Anthropic Claude async streaming
-  - LangChain async chain integration
+  - Generic async LLM streaming integration
+  - Real-time error recovery streaming
+  - Async pipeline integration (works with any async framework)
   - Concurrent stream processing
   - Error handling in async contexts
   - Performance monitoring
