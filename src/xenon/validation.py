@@ -145,7 +145,7 @@ def validate_with_schema(xml_string: str, schema_content: str) -> None:
             # Assume DTD
             dtd = etree.DTD(StringIO(schema_content))
             if not dtd.validate(xml_doc):
-                errors = str(dtd.error_log)
+                errors = "\n".join([str(error) for error in dtd.error_log])  # type: ignore[attr-defined]
                 raise ValidationError(f"DTD validation failed:\n{errors}")
         else:
             # Assume XSD
@@ -156,5 +156,5 @@ def validate_with_schema(xml_string: str, schema_content: str) -> None:
     except etree.XMLSyntaxError as e:
         raise ValidationError(f"Invalid XML or schema: {e}")
     except etree.DocumentInvalid as e:
-        errors = str(e.error_log)
+        errors = "\n".join([str(error) for error in e.error_log])  # type: ignore[attr-defined]
         raise ValidationError(f"Schema validation failed:\n{errors}")

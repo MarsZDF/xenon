@@ -4,7 +4,10 @@ Streaming XML repair for real-time LLM output.
 This module provides streaming XML repair capabilities that allow processing
 XML as it's generated token-by-token, eliminating latency in RAG pipelines.
 
-Example:
+Supports both synchronous and asynchronous streaming for compatibility with
+modern async LLM SDKs (OpenAI, Anthropic, LangChain).
+
+Synchronous Example:
     >>> from xenon.streaming import StreamingXMLRepair
     >>> from xenon import TrustLevel
     >>>
@@ -22,10 +25,33 @@ Example:
     ...         yield safe_xml
     >>> for final_xml in repairer.finalize():
     ...     yield final_xml
+
+Asynchronous Example:
+    >>> import asyncio
+    >>> from xenon.streaming import StreamingXMLRepair
+    >>> from xenon import TrustLevel
+    >>>
+    >>> # Async context manager (recommended)
+    >>> async def repair_llm_stream():
+    ...     async with StreamingXMLRepair(trust=TrustLevel.UNTRUSTED) as repairer:
+    ...         async for chunk in openai.ChatCompletion.acreate(stream=True):
+    ...             async for safe_xml in repairer.feed_async(chunk):
+    ...                 yield safe_xml
+    ...     # finalize_async() called automatically
+    >>>
+    >>> # Manual async control
+    >>> async def repair_manual():
+    ...     repairer = StreamingXMLRepair(trust=TrustLevel.UNTRUSTED)
+    ...     async for chunk in llm_async_stream():
+    ...         async for safe_xml in repairer.feed_async(chunk):
+    ...             yield safe_xml
+    ...     async for final_xml in repairer.finalize_async():
+    ...         yield final_xml
 """
 
+import asyncio
 from enum import Enum
-from typing import Any, Iterator, List, Optional, Tuple, Type
+from typing import Any, AsyncIterator, Iterator, List, Optional, Tuple, Type
 
 from .config import XMLRepairConfig
 from .parser import XMLRepairEngine
@@ -217,6 +243,60 @@ class StreamingXMLRepair:
             tag_name_original, _ = self.tag_stack.pop()
             yield f"</{tag_name_original}>"
 
+    async def feed_async(self, chunk: str) -> AsyncIterator[str]:
+        """
+        Async variant of feed() for native async/await integration.
+
+        This method is designed for use with async LLM SDKs like OpenAI, Anthropic,
+        and LangChain async chains. It yields the same results as feed() but is
+        compatible with async for loops.
+
+        Args:
+            chunk: String chunk from async LLM stream
+
+        Yields:
+            Safe XML strings that can be immediately output
+
+        Example:
+            >>> import asyncio
+            >>> from xenon import TrustLevel
+            >>> async def process_llm_stream():
+            ...     repairer = StreamingXMLRepair(trust=TrustLevel.UNTRUSTED)
+            ...     async for chunk in openai_async_stream():
+            ...         async for safe_xml in repairer.feed_async(chunk):
+            ...             print(f"Got: {safe_xml}")
+            ...     async for final in repairer.finalize_async():
+            ...         print(f"Final: {final}")
+        """
+        # Process synchronously (CPU-bound, no I/O)
+        # But yield control to event loop between chunks
+        for result in self.feed(chunk):
+            yield result
+            # Yield control to event loop for responsiveness
+            await asyncio.sleep(0)
+
+    async def finalize_async(self) -> AsyncIterator[str]:
+        """
+        Async variant of finalize() for async context managers.
+
+        Finalizes the stream and closes any open tags, yielding results
+        asynchronously for compatibility with async code.
+
+        Yields:
+            Final XML pieces (remaining buffer + closing tags)
+
+        Example:
+            >>> async def process():
+            ...     async with StreamingXMLRepair(trust=TrustLevel.UNTRUSTED) as repairer:
+            ...         async for chunk in llm_stream:
+            ...             async for safe in repairer.feed_async(chunk):
+            ...                 yield safe
+            ...     # finalize_async() called automatically by async context manager
+        """
+        for result in self.finalize():
+            yield result
+            await asyncio.sleep(0)
+
     def __enter__(self) -> "StreamingXMLRepair":
         """Context manager entry."""
         return self
@@ -231,6 +311,22 @@ class StreamingXMLRepair:
         if not self._finalized:
             # Consume finalize output (caller should have already yielded it)
             list(self.finalize())
+
+    async def __aenter__(self) -> "StreamingXMLRepair":
+        """Async context manager entry."""
+        return self
+
+    async def __aexit__(
+        self,
+        exc_type: Optional[Type[BaseException]],
+        exc_val: Optional[BaseException],
+        exc_tb: Optional[Any],
+    ) -> None:
+        """Async context manager exit - auto-finalize asynchronously."""
+        if not self._finalized:
+            # Consume finalize output asynchronously
+            async for _ in self.finalize_async():
+                pass
 
     def _is_valid_tag_start(self, char: str) -> bool:
         """

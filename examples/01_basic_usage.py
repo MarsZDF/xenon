@@ -22,7 +22,9 @@ print(f"Output: {repaired}")
 # Example 2: Conversational Fluff
 print("\n2. Extracting XML from Conversational Text")
 print("-" * 40)
-llm_response = 'Sure! Here is the XML you requested: <root><item>data</item></root> Hope this helps!'
+llm_response = (
+    "Sure! Here is the XML you requested: <root><item>data</item></root> Hope this helps!"
+)
 print(f"Input:  {llm_response}")
 repaired = repair_xml(llm_response)
 print(f"Output: {repaired}")
@@ -30,7 +32,7 @@ print(f"Output: {repaired}")
 # Example 3: Malformed Attributes
 print("\n3. Fixing Malformed Attributes")
 print("-" * 40)
-malformed_attrs = '<user name=John age=30 city=NYC>Hello</user>'
+malformed_attrs = "<user name=John age=30 city=NYC>Hello</user>"
 print(f"Input:  {malformed_attrs}")
 repaired = repair_xml(malformed_attrs)
 print(f"Output: {repaired}")
@@ -38,7 +40,7 @@ print(f"Output: {repaired}")
 # Example 4: Unescaped Entities
 print("\n4. Escaping Unescaped Entities")
 print("-" * 40)
-unescaped = '<message>Tom & Jerry < > test</message>'
+unescaped = "<message>Tom & Jerry < > test</message>"
 print(f"Input:  {unescaped}")
 repaired = repair_xml(unescaped)
 print(f"Output: {repaired}")
@@ -54,7 +56,7 @@ print(f"Output: {parsed}")
 # Example 6: Safe Repair with Validation
 print("\n6. Safe Repair with Strict Validation")
 print("-" * 40)
-xml = '<root><item>incomplete'
+xml = "<root><item>incomplete"
 print(f"Input:  {xml}")
 try:
     repaired = repair_xml_safe(xml, strict=True)
@@ -66,7 +68,7 @@ except Exception as e:
 # Example 7: Multiple Issues
 print("\n7. Repairing Multiple Issues at Once")
 print("-" * 40)
-complex_xml = '<root><user name=Alice>Tom & Jerry<item>unclosed'
+complex_xml = "<root><user name=Alice>Tom & Jerry<item>unclosed"
 print(f"Input:  {complex_xml}")
 repaired = repair_xml(complex_xml)
 print(f"Output: {repaired}")
@@ -74,7 +76,7 @@ print(f"Output: {repaired}")
 # Example 8: Empty/Whitespace Input
 print("\n8. Handling Empty Input")
 print("-" * 40)
-empty_xml = '   \n\t  '
+empty_xml = "   \n\t  "
 print(f"Input:  '{empty_xml}'")
 try:
     repaired = repair_xml_safe(empty_xml, allow_empty=True)

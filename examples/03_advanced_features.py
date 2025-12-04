@@ -29,7 +29,7 @@ print("=" * 80)
 print("\n1. Detailed Repair Reporting")
 print("-" * 40)
 
-xml = '<root><user name=Alice>Tom & Jerry<item>unclosed'
+xml = "<root><user name=Alice>Tom & Jerry<item>unclosed"
 print(f"Input: {xml}")
 
 repaired, report = repair_xml_with_report(xml)
@@ -92,19 +92,19 @@ print("\n4. Batch Processing with Detailed Reports")
 print("-" * 40)
 
 xml_batch = [
-    '<root>valid</root>',  # No repairs needed
-    '<root><item>incomplete',  # Needs repair
-    '<user name=unquoted>text & more',  # Multiple issues
+    "<root>valid</root>",  # No repairs needed
+    "<root><item>incomplete",  # Needs repair
+    "<user name=unquoted>text & more",  # Multiple issues
 ]
 
 results = batch_repair_with_reports(
     xml_batch,
-    filter_func=lambda r: len(r) > 0  # Only return items that needed repairs
+    filter_func=lambda r: len(r) > 0,  # Only return items that needed repairs
 )
 
 print(f"Processed {len(xml_batch)} items, {len(results)} needed repairs:\n")
 for i, (repaired, report) in enumerate(results):
-    print(f"Item {i+1}:")
+    print(f"Item {i + 1}:")
     print(f"  Repaired: {repaired}")
     print(f"  Repairs: {len(report)}")
 
@@ -113,10 +113,10 @@ print("\n5. XML Structure Validation")
 print("-" * 40)
 
 test_cases = [
-    '<root><item>valid</item></root>',
-    '<root><item>unclosed',
-    '<root attr=unquoted>test</root>',
-    '<root>Tom & Jerry</root>',
+    "<root><item>valid</item></root>",
+    "<root><item>unclosed",
+    "<root attr=unquoted>test</root>",
+    "<root>Tom & Jerry</root>",
 ]
 
 for xml in test_cases:
@@ -179,14 +179,14 @@ print("-" * 40)
 # Example: Maximum security + all repairs
 max_security_config = XMLRepairConfig(
     security=(
-        SecurityFlags.STRIP_DANGEROUS_PIS |
-        SecurityFlags.STRIP_EXTERNAL_ENTITIES |
-        SecurityFlags.STRIP_DANGEROUS_TAGS
+        SecurityFlags.STRIP_DANGEROUS_PIS
+        | SecurityFlags.STRIP_EXTERNAL_ENTITIES
+        | SecurityFlags.STRIP_DANGEROUS_TAGS
     ),
     repair=(
-        RepairFlags.WRAP_MULTIPLE_ROOTS |
-        RepairFlags.SANITIZE_INVALID_TAGS |
-        RepairFlags.FIX_NAMESPACE_SYNTAX
+        RepairFlags.WRAP_MULTIPLE_ROOTS
+        | RepairFlags.SANITIZE_INVALID_TAGS
+        | RepairFlags.FIX_NAMESPACE_SYNTAX
     ),
 )
 
@@ -210,7 +210,7 @@ print("-" * 40)
 
 import time
 
-test_xml = '<root>' + '<item>data</item>' * 100 + '</root>'
+test_xml = "<root>" + "<item>data</item>" * 100 + "</root>"
 
 start = time.perf_counter()
 for _ in range(1000):
@@ -219,7 +219,7 @@ end = time.perf_counter()
 
 avg_time = (end - start) / 1000 * 1000  # Convert to milliseconds
 print(f"Average repair time for {len(test_xml)} char XML: {avg_time:.4f} ms")
-print(f"Throughput: ~{1000/avg_time:.0f} repairs/second")
+print(f"Throughput: ~{1000 / avg_time:.0f} repairs/second")
 
 print("\n" + "=" * 80)
 print("Advanced Features Summary:")
