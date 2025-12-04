@@ -128,7 +128,7 @@ def validate_with_schema(xml_string: str, schema_content: str) -> None:
         ValidationError: If the XML is not valid according to the schema.
     """
     try:
-        from lxml import etree
+        from lxml import etree  # nosec B410
     except ImportError:
         raise ImportError(
             "Schema validation requires the 'lxml' library. "
@@ -136,8 +136,9 @@ def validate_with_schema(xml_string: str, schema_content: str) -> None:
         )
 
     try:
-        # Parse the XML
-        xml_doc = etree.fromstring(xml_string.encode("utf-8"))
+        # Parse the XML with security defaults (no network, no entity resolution)
+        parser = etree.XMLParser(resolve_entities=False, no_network=True)
+        xml_doc = etree.fromstring(xml_string.encode("utf-8"), parser=parser)  # nosec B320
 
         if schema_content.strip().startswith("<!DOCTYPE") or schema_content.strip().startswith(
             "<!ELEMENT"
@@ -149,7 +150,8 @@ def validate_with_schema(xml_string: str, schema_content: str) -> None:
                 raise ValidationError(f"DTD validation failed:\n{errors}")
         else:
             # Assume XSD
-            schema_doc = etree.fromstring(schema_content.encode("utf-8"))
+            # Use the same safe parser for schema content
+            schema_doc = etree.fromstring(schema_content.encode("utf-8"), parser=parser)  # nosec B320
             schema = etree.XMLSchema(schema_doc)
             schema.assertValid(xml_doc)
 
