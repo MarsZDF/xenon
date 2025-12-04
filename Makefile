@@ -4,6 +4,7 @@
 help:
 	@echo "Xenon Development Commands:"
 	@echo ""
+	@echo "  make install       - Create venv and install dependencies"
 	@echo "  make check         - Run all checks (lint, format, type, test)"
 	@echo "  make fix           - Auto-fix issues (lint + format)"
 	@echo "  make test          - Run test suite"
@@ -14,8 +15,16 @@ help:
 	@echo "  make clean         - Clean cache files"
 	@echo ""
 	@echo "Quick workflow:"
-	@echo "  make install-hooks           # One-time setup"
+	@echo "  make install                 # First time setup"
+	@echo "  make install-hooks           # Optional git hook"
 	@echo "  make fix && make check       # Fix issues then verify"
+
+# Install dependencies
+install:
+	@echo "📦 Installing dependencies..."
+	python -m pip install --upgrade pip
+	pip install -e ".[dev]"
+	@echo "✅ Installation complete."
 
 # Run all checks (what CI runs)
 check: lint format typecheck test

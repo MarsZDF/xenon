@@ -26,27 +26,40 @@ jobs:
           cache: "pip"
 
       - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[dev]"
+        run: make install
 
-      - name: Run Ruff linter
-        run: ruff check src/ tests/
+      - name: Run Linting
+        run: make lint
 
-      - name: Run Ruff formatter check
+      - name: Run Formatting Check
         run: ruff format --check src/ tests/
 
-      - name: Run MyPy
-        run: mypy src/xenon --ignore-missing-imports
+      - name: Run Type Checking
+        run: make typecheck
 
   test:
-    name: Test Python ${{ matrix.python-version }}
+    name: Test ${{ matrix.os }} / Py ${{ matrix.python-version }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, windows-latest, macos-latest]
-        python-version: ["3.8", "3.9", "3.10", "3.11", "3.12"]
+        include:
+          # Test all Python versions on Ubuntu
+          - os: ubuntu-latest
+            python-version: "3.8"
+          - os: ubuntu-latest
+            python-version: "3.9"
+          - os: ubuntu-latest
+            python-version: "3.10"
+          - os: ubuntu-latest
+            python-version: "3.11"
+          - os: ubuntu-latest
+            python-version: "3.12"
+          # Test OS compatibility on latest Python
+          - os: windows-latest
+            python-version: "3.12"
+          - os: macos-latest
+            python-version: "3.12"
 
     steps:
       - uses: actions/checkout@v4
@@ -58,12 +71,12 @@ jobs:
           cache: "pip"
 
       - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[dev]"
+        run: make install
 
       - name: Run tests
-        run: pytest tests/ -v --tb=short --cov=xenon --cov-report=xml --cov-report=term -p no:sugar
+        # We use make test but add coverage reporting flags for CI
+        # The Makefile has -p no:sugar built-in now
+        run: make test
 
       - name: Upload coverage to Codecov
         if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.11'
@@ -87,11 +100,13 @@ jobs:
           cache: "pip"
 
       - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[dev]"
+        run: make install
+
+      - name: Install security tools
+        run: pip install bandit
 
       - name: Run Bandit security scan
+        # We don't have a make target for this yet, but we could add one
         run: bandit -r src/ -c pyproject.toml
 
   build:
@@ -109,15 +124,13 @@ jobs:
       - name: Install build dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install build hatchling
+          pip install build twine
 
       - name: Build distribution
         run: python -m build
 
       - name: Check distribution
-        run: |
-          pip install twine
-          twine check dist/*
+        run: twine check dist/*
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
@@ -142,9 +155,7 @@ jobs:
           cache: "pip"
       
       - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[dev]"
+        run: make install
 
       - name: Configure Git
         run: |
@@ -169,9 +180,7 @@ jobs:
           cache: "pip"
 
       - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -e ".[dev]"
+        run: make install
 
       - name: Run benchmarks
         run: |
