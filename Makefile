@@ -32,7 +32,7 @@ fix:
 # Run tests with coverage
 test:
 	@echo "🧪 Running tests..."
-	python -m pytest tests/ -q --tb=line
+	python -m pytest tests/ -q --tb=line -p no:sugar
 
 # Ruff linting (check only)
 lint:
