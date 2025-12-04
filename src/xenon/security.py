@@ -1,6 +1,7 @@
 """Security filtering component for Xenon XML repair engine."""
 
 import re
+from typing import Optional
 
 from .config import SecurityFlags, XMLRepairConfig
 
@@ -121,7 +122,7 @@ class XMLSecurityFilter:
         return re.sub(r"<!DOCTYPE(?:[^>\[]|\[.*?\])*>", "", text, flags=re.DOTALL | re.IGNORECASE)
 
 
-def check_max_depth(current_depth: int, max_depth: int | None) -> None:
+def check_max_depth(current_depth: int, max_depth: Optional[int]) -> None:
     """
     Check if current nesting depth exceeds max_depth limit.
 
