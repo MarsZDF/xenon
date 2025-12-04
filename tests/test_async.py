@@ -6,16 +6,17 @@ ensuring compatibility with async LLM SDKs and frameworks.
 """
 
 import asyncio
-from typing import AsyncIterator, List
+from typing import AsyncGenerator, AsyncIterator, List
 
 import pytest
 
 from xenon import TrustLevel
+from xenon.exceptions import SecurityError
 from xenon.streaming import StreamingXMLRepair
 
 
-# Async helper to simulate LLM streaming
-async def async_stream_chunks(chunks: List[str]) -> AsyncIterator[str]:
+# Mock async stream
+async def async_stream_chunks(chunks: List[str]) -> AsyncGenerator[str, None]:
     """Simulate an async LLM stream by yielding chunks with small delays."""
     for chunk in chunks:
         await asyncio.sleep(0.001)  # Simulate network delay
@@ -135,7 +136,7 @@ class TestAsyncStreamingSecurity:
         # Create deeply nested XML (UNTRUSTED has max_depth=1000)
         chunks = ["<root>"] + ["<level>"] * 1001
 
-        with pytest.raises(RuntimeError, match="Maximum nesting depth"):
+        with pytest.raises(SecurityError, match="Maximum nesting depth"):
             async for chunk in async_stream_chunks(chunks):
                 async for safe in repairer.feed_async(chunk):
                     pass

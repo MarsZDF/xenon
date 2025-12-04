@@ -228,3 +228,58 @@ class XMLPreprocessor:
         else:
             # More than 2 parts: keep first colon, join rest with underscore
             return parts[0] + ":" + "_".join(parts[1:])
+
+    def is_cdata_candidate(self, tag_name: str) -> bool:
+        """
+        Check if tag is a candidate for CDATA wrapping.
+
+        Args:
+            tag_name: The tag name to check
+
+        Returns:
+            True if tag commonly contains code or special characters
+        """
+        cdata_tags = {
+            "code",
+            "script",
+            "pre",
+            "source",
+            "sql",
+            "query",
+            "formula",
+            "expression",
+            "xpath",
+            "regex",
+        }
+        return tag_name.lower() in cdata_tags
+
+    def needs_cdata_wrapping(self, text: str) -> bool:
+        """
+        Check if text content should be wrapped in CDATA.
+
+        For code-like content (in candidate tags), we are liberal - even
+        a single special character is worth wrapping to preserve readability.
+        """
+        if not text or text.isspace():
+            return False
+
+        # Check if already has CDATA
+        if "<![CDATA[" in text:
+            return False
+
+        special_chars = {"<", ">", "&"}
+        for char in special_chars:
+            if char in text:
+                return True
+
+        return False
+
+    def wrap_cdata(self, text: str) -> str:
+        """
+        Wrap text in CDATA section with security fix for ]]> breakout.
+
+        SECURITY: Escape ]]> to prevent CDATA injection attacks.
+        """
+        # Escape ]]> to prevent CDATA breakout
+        safe_text = text.replace("]]>", "]]]]><![CDATA[>")
+        return f"<![CDATA[{safe_text}]]>"

@@ -103,6 +103,26 @@ class TestXMLFormatting:
         assert "<root>" in result
         assert "<item>test</item>" in result
 
+    def test_pretty_print_fallback(self, monkeypatch):
+        """Test fallback to simple indentation when minidom fails."""
+        from xml.dom import minidom
+
+        def mock_parse(*args, **kwargs):
+            raise Exception("Minidom failed")
+
+        monkeypatch.setattr(minidom, "parseString", mock_parse)
+
+        xml = "<root><item>test</item></root>"
+        result = format_xml(xml, style="pretty")
+
+        # Should still be formatted (using fallback)
+        # Note: _simple_indent puts text on new lines
+        assert "<root>" in result
+        assert "  <item>" in result
+        assert "    test" in result
+        assert "  </item>" in result
+        assert "</root>" in result
+
     def test_minify_removes_all_whitespace(self):
         """Test minify removes unnecessary whitespace."""
         xml = """

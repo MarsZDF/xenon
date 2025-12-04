@@ -1,10 +1,11 @@
 import re
 from typing import TYPE_CHECKING, Any, Dict, List, Match, Optional, Tuple
 
+from .attribute_parser import fix_malformed_attributes
 from .config import RepairFlags, SecurityFlags, XMLRepairConfig
 from .preprocessor import XMLPreprocessor
-from .reporting import RepairAction, RepairReport, RepairType
-from .security import XMLSecurityFilter
+from .reporting import RepairReport, RepairType
+from .security import XMLSecurityFilter, check_max_depth
 
 if TYPE_CHECKING:
     from .reporting import RepairReport
@@ -137,20 +138,6 @@ class XMLRepairEngine:
         self.auto_wrap_cdata = config.has_repair_feature(RepairFlags.AUTO_WRAP_CDATA)
         self.schema_content = config.schema_content
 
-        # Tags that commonly contain code or special characters
-        self.CDATA_CANDIDATE_TAGS = {
-            "code",
-            "script",
-            "pre",
-            "source",
-            "sql",
-            "query",
-            "formula",
-            "expression",
-            "xpath",
-            "regex",
-        }
-
     @classmethod
     def from_trust_level(cls, trust: "TrustLevel") -> "XMLRepairEngine":
         """
@@ -191,85 +178,6 @@ class XMLRepairEngine:
             max_depth=config_obj.max_depth,
             schema_content=None,  # from_trust_level doesn't provide a schema content by default
         )
-
-    def _is_cdata_candidate_tag(self, tag_name: str) -> bool:
-        """
-        Check if tag name is a candidate for CDATA wrapping.
-
-        Args:
-            tag_name: The tag name to check
-
-        Returns:
-            True if tag commonly contains code or special characters
-        """
-        return tag_name.lower() in self.CDATA_CANDIDATE_TAGS
-
-    def _check_max_depth(self, tag_stack: List[Tuple[str, str]]) -> None:
-        """
-        Check if current nesting depth exceeds max_depth limit.
-
-        Args:
-            tag_stack: Current tag stack
-
-        Raises:
-            SecurityError: If depth exceeds max_depth
-        """
-        if self.max_depth is not None and len(tag_stack) > self.max_depth:
-            from .exceptions import SecurityError
-
-            raise SecurityError(
-                f"Maximum nesting depth {self.max_depth} exceeded. "
-                f"Current depth: {len(tag_stack)}. "
-                f"This may indicate a DoS attack via malicious input, "
-                f"runaway LLM generation, or legitimate deep nesting. "
-                f"Override with max_depth={len(tag_stack) + 1000} if this is expected."
-            )
-
-    def _content_needs_cdata(self, content: str) -> bool:
-        """
-        Check if content contains characters that benefit from CDATA wrapping.
-
-        CDATA is useful when content has special XML characters that
-        would otherwise need escaping. For code-like content, even a single
-        special character is worth wrapping to preserve readability.
-
-        Args:
-            content: The text content to check
-
-        Returns:
-            True if content has special characters
-        """
-        if not content or content.isspace():
-            return False
-
-        # For code content, be liberal - even 1 special char benefits from CDATA
-        # This is different from regular text where escaping is fine
-        special_chars = {"<", ">", "&"}
-
-        for char in special_chars:
-            if char in content:
-                return True
-
-        return False
-
-    def _wrap_in_cdata(self, content: str) -> str:
-        """
-        Wrap content in CDATA section.
-
-        Handles edge case where content already contains ]]> by splitting it.
-
-        Args:
-            content: The content to wrap
-
-        Returns:
-            Content wrapped in CDATA section
-        """
-        # Handle ]]> in content by splitting the CDATA
-        # ]]> ends CDATA, so we need to escape it as ]]]]><![CDATA[>
-        if "]]>" in content:
-            content = content.replace("]]>", "]]]]><![CDATA[>")
-
-        return f"<![CDATA[{content}]]>"
 
     def is_dangerous_pi(self, pi_content: str) -> bool:
         """
@@ -438,223 +346,6 @@ class XMLRepairEngine:
 
         return text[xml_start:xml_end]
 
-    def fix_malformed_attributes(self, tag_content: str) -> Tuple[str, List["RepairAction"]]:
-        actions = []
-        # Fix unquoted attribute values by parsing more carefully
-        content = tag_content.strip()
-
-        # Extract tag name first (everything before the first = or first space followed by word=)
-        tag_name = ""
-        attr_start_pos = 0
-        i = 0
-
-        # Read the tag name (first word)
-        while i < len(content) and not content[i].isspace():
-            i += 1
-
-        if i < len(content):
-            tag_name = content[:i]
-            # Skip whitespace after tag name
-            while i < len(content) and content[i].isspace():
-                i += 1
-            attr_start_pos = i
-        else:
-            # No attributes, just tag name
-            return content, []
-
-        # Now parse attributes
-        result = [tag_name]
-        seen_attrs = set()  # Track attributes to remove duplicates
-        i = attr_start_pos
-
-        while i < len(content):
-            # Skip whitespace
-            while i < len(content) and content[i].isspace():
-                i += 1
-
-            if i >= len(content):
-                break
-
-            # Look for attribute pattern: name=value
-            attr_start = i
-
-            # Find attribute name
-            while i < len(content) and (content[i].isalnum() or content[i] in "_-:"):
-                i += 1
-
-            if i >= len(content) or content[i] != "=":
-                # Not an attribute, just copy the rest
-                result.append(" ")
-                result.append(content[attr_start:])
-                break
-
-            attr_name = content[attr_start:i]
-            attr_name_lower = attr_name.lower()  # Case-insensitive duplicate check
-            i += 1  # Skip the '='
-
-            # Skip if this is a duplicate attribute
-            if attr_name_lower in seen_attrs:
-                actions.append(
-                    RepairAction(
-                        repair_type=RepairType.DUPLICATE_ATTRIBUTE,
-                        description=f"Removed duplicate attribute '{attr_name_lower}'",
-                        location=tag_name,
-                    )
-                )
-                # Parse the value but don't add to result
-                if i < len(content) and content[i] in ['"', "'"]:
-                    quote_char = content[i]
-                    i += 1
-                    while i < len(content) and content[i] != quote_char:
-                        i += 1
-                    if i < len(content):
-                        i += 1
-                else:
-                    # Unquoted value
-                    while i < len(content):
-                        if content[i].isspace():
-                            j = i
-                            while j < len(content) and content[j].isspace():
-                                j += 1
-                            if j < len(content):
-                                k = j
-                                while k < len(content) and (
-                                    content[k].isalnum() or content[k] in "_-:"
-                                ):
-                                    k += 1
-                                if k < len(content) and content[k] == "=":
-                                    break
-                        i += 1
-                continue
-
-            seen_attrs.add(attr_name_lower)
-
-            if i >= len(content):
-                result.append(f' {attr_name}="')
-                break
-
-            # Handle the value
-            if content[i] in ['"', "'"]:
-                # Already quoted, find the end quote
-                quote_char = content[i]
-                value_start = i + 1  # Start after the opening quote
-                i += 1
-                while i < len(content) and content[i] != quote_char:
-                    i += 1
-                value = content[value_start:i]  # Value without quotes
-                if i < len(content):
-                    i += 1  # Skip the closing quote
-                # Escape the value and add with quotes
-                escaped_value = self.escape_attribute_value(
-                    value, quote_char, aggressive_escape=self.escape_unsafe_attributes
-                )
-                result.append(f" {attr_name}={quote_char}{escaped_value}{quote_char}")
-            else:
-                # Unquoted value, collect until next attribute or end
-                value_start = i
-
-                # Collect value until we hit the next attribute (word=) or end
-                while i < len(content):
-                    if content[i].isspace():
-                        # Look ahead to see if this is the start of a new attribute
-                        j = i
-                        while j < len(content) and content[j].isspace():
-                            j += 1
-
-                        # Check if we have word= pattern ahead
-                        if j < len(content):
-                            while j < len(content) and (
-                                content[j].isalnum() or content[j] in "_-:"
-                            ):
-                                j += 1
-                            if j < len(content) and content[j] == "=":
-                                # This is a new attribute, stop here
-                                break
-                    i += 1
-
-                value = content[value_start:i].strip()
-                # Report this action
-                escaped_value = self.escape_attribute_value(
-                    value, '"', aggressive_escape=self.escape_unsafe_attributes
-                )
-                actions.append(
-                    RepairAction(
-                        repair_type=RepairType.MALFORMED_ATTRIBUTE,
-                        description=f"Added quotes to unquoted attribute '{attr_name}'",
-                        location=tag_name,
-                        before=f"{attr_name}={value}",
-                        after=f'{attr_name}="{escaped_value}"',
-                    )
-                )
-                result.append(f' {attr_name}="{escaped_value}"')
-
-        return "".join(result), actions
-
-    def detect_cdata_needed(self, text: str) -> bool:
-        """
-        Detect if text content should be wrapped in CDATA.
-
-        Heuristics:
-        - Contains >= 3 unescaped special XML chars (<, >, &)
-        - Contains code keywords (if, for, while, function, class, def, var, let, const)
-        - Has existing CDATA markers
-        """
-        if not text or len(text) < 3:
-            return False
-
-        # Check if already has CDATA
-        if "<![CDATA[" in text:
-            return False
-
-        # Count special characters, but exclude valid entity references
-        import re
-
-        # Remove valid entities before counting
-        valid_entity_pattern = r"&(?:lt|gt|amp|quot|apos|#\d+|#x[0-9a-fA-F]+);"
-        text_without_entities = re.sub(valid_entity_pattern, "", text)
-
-        special_count = (
-            text_without_entities.count("<")
-            + text_without_entities.count(">")
-            + text_without_entities.count("&")
-        )
-        if special_count >= 3:
-            return True
-
-        # Check for code keywords (case-insensitive)
-        code_keywords = [
-            "if(",
-            "for(",
-            "while(",
-            "function",
-            "class ",
-            "def ",
-            "var ",
-            "let ",
-            "const ",
-            "return ",
-            "&&",
-            "||",
-            "!=",
-            "==",
-        ]
-        text_lower = text.lower()
-        for keyword in code_keywords:
-            if keyword in text_lower:
-                return True
-
-        return False
-
-    def wrap_in_cdata(self, text: str) -> str:
-        """
-        Wrap text in CDATA section with security fix for ]]> breakout.
-
-        SECURITY: Escape ]]> to prevent CDATA injection attacks.
-        """
-        # Escape ]]> to prevent CDATA breakout
-        safe_text = text.replace("]]>", "]]]]><![CDATA[>")
-        return f"<![CDATA[{safe_text}]]>"
-
     def extract_namespaces(self, xml: str) -> Dict[str, str]:
         """
         Extract namespace prefixes used in XML.
@@ -745,55 +436,6 @@ class XMLRepairEngine:
             text = text.replace(f"\x00ENTITY{i}\x00", entity)
 
         return text, text != original_text
-
-    def escape_attribute_value(
-        self, value: str, quote_char: str = '"', aggressive_escape: bool = False
-    ) -> str:
-        """
-        Escape special characters in attribute values.
-
-        Escapes &, <, >, and the quote character used to delimit the attribute.
-        Avoids double-escaping already valid entity references.
-        """
-        # Pattern to match valid entity references
-        import re
-
-        valid_entity_pattern = r"&(?:lt|gt|amp|quot|apos|#\d+|#x[0-9a-fA-F]+);"
-
-        # Find all valid entities and temporarily replace them with placeholders
-        entities = []
-
-        def save_entity(match: Match[str]) -> str:
-            entities.append(match.group(0))
-            return f"\x00ENTITY{len(entities) - 1}\x00"
-
-        value = re.sub(valid_entity_pattern, save_entity, value)
-
-        # Escape special characters
-        value = value.replace("&", "&amp;")
-        value = value.replace("<", "&lt;")
-        value = value.replace(">", "&gt;")
-
-        if aggressive_escape:
-            value = value.replace("'", "&apos;")
-            value = value.replace('"', "&quot;")
-            value = value.replace("/", "&#x2F;")
-            value = value.replace(" ", "&#x20;")
-            value = value.replace("\t", "&#x09;")
-            value = value.replace("\n", "&#x0A;")
-            value = value.replace("\r", "&#x0D;")
-        else:
-            # Escape the quote character being used
-            if quote_char == '"':
-                value = value.replace('"', "&quot;")
-            else:  # single quote
-                value = value.replace("'", "&apos;")
-
-        # Restore the valid entities
-        for i, entity in enumerate(entities):
-            value = value.replace(f"\x00ENTITY{i}\x00", entity)
-
-        return value
 
     def tokenize(self, xml_string: str) -> List[XMLToken]:
         tokens = []
@@ -1003,9 +645,9 @@ class XMLRepairEngine:
             if (
                 in_cdata_candidate
                 and self.auto_wrap_cdata
-                and self._content_needs_cdata(combined_text)
+                and self.preprocessor.needs_cdata_wrapping(combined_text)
             ):
-                result.append(self._wrap_in_cdata(combined_text))
+                result.append(self.preprocessor.wrap_cdata(combined_text))
             else:
                 # Escape entities normally
                 escaped_text, _ = self.escape_entities(
@@ -1052,7 +694,9 @@ class XMLRepairEngine:
                     continue
 
                 # Fix attributes and report
-                fixed_content, attr_actions = self.fix_malformed_attributes(token.content)
+                fixed_content, attr_actions = fix_malformed_attributes(
+                    token.content, aggressive_escape=self.escape_unsafe_attributes
+                )
                 if attr_actions:
                     report.actions.extend(attr_actions)
 
@@ -1067,9 +711,9 @@ class XMLRepairEngine:
 
                 if tag_name:
                     tag_stack.append((tag_name, tag_name.lower()))
-                    self._check_max_depth(tag_stack)
+                    check_max_depth(len(tag_stack), self.max_depth)
                     # Check if this is a CDATA candidate tag
-                    in_cdata_candidate = self._is_cdata_candidate_tag(tag_name)
+                    in_cdata_candidate = self.preprocessor.is_cdata_candidate(tag_name)
                     i += 1  # Skip the tag_name token
                     # Don't fall through to i += 1 at end of loop - we already incremented
             elif token.type == "close_tag":
@@ -1133,14 +777,18 @@ class XMLRepairEngine:
                     result.append(f"</{token.content}>")
             elif token.type == "self_closing_tag":
                 flush_text_buffer()
-                fixed_content, attr_actions = self.fix_malformed_attributes(token.content)
+                fixed_content, attr_actions = fix_malformed_attributes(
+                    token.content, aggressive_escape=self.escape_unsafe_attributes
+                )
                 if attr_actions:
                     report.actions.extend(attr_actions)
                 result.append(f"<{fixed_content}/>")
             elif token.type == "incomplete_tag":
                 flush_text_buffer()
 
-                fixed_content, attr_actions = self.fix_malformed_attributes(token.content)
+                fixed_content, attr_actions = fix_malformed_attributes(
+                    token.content, aggressive_escape=self.escape_unsafe_attributes
+                )
                 if attr_actions:
                     report.actions.extend(attr_actions)
 
@@ -1157,7 +805,7 @@ class XMLRepairEngine:
                 if i + 1 < len(tokens) and tokens[i + 1].type == "tag_name":
                     tag_name = tokens[i + 1].content
                     tag_stack.append((tag_name, tag_name.lower()))
-                    self._check_max_depth(tag_stack)
+                    check_max_depth(len(tag_stack), self.max_depth)
                     i += 1  # Skip the tag_name token
             elif token.type == "text":
                 # Buffer text content if we're in a CDATA candidate tag

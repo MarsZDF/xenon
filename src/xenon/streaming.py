@@ -53,8 +53,10 @@ import asyncio
 from enum import Enum
 from typing import Any, AsyncIterator, Iterator, List, Optional, Tuple, Type
 
+from .attribute_parser import fix_malformed_attributes
 from .config import XMLRepairConfig
 from .parser import XMLRepairEngine
+from .security import check_max_depth
 from .trust import TrustLevel, get_security_config
 
 
@@ -345,15 +347,9 @@ class StreamingXMLRepair:
         Check if current nesting depth exceeds max_depth limit.
 
         Raises:
-            RuntimeError: If depth exceeds max_depth
+            SecurityError: If depth exceeds max_depth
         """
-        if self.max_depth is not None and len(self.tag_stack) > self.max_depth:
-            raise RuntimeError(
-                f"Maximum nesting depth {self.max_depth} exceeded during streaming. "
-                f"Current depth: {len(self.tag_stack)}. "
-                f"This may indicate a DoS attack or runaway LLM generation. "
-                f"Override with max_depth={len(self.tag_stack) + 1000} if this is expected."
-            )
+        check_max_depth(len(self.tag_stack), self.max_depth)
 
     def _process_buffer(self) -> Iterator[str]:
         """Process buffer through state machine."""
@@ -516,7 +512,9 @@ class StreamingXMLRepair:
         tag_content = tag_str[1:-1].strip()
 
         # Repair attributes using existing engine
-        repaired_content, _ = self._repair_engine.fix_malformed_attributes(tag_content)
+        repaired_content, _ = fix_malformed_attributes(
+            tag_content, aggressive_escape=self._repair_engine.escape_unsafe_attributes
+        )
         repaired = f"<{repaired_content}>"
 
         # Extract tag name to track
@@ -533,7 +531,9 @@ class StreamingXMLRepair:
         """Repair self-closing tag attributes."""
         # Extract content without < and />
         tag_content = tag_str[1:-2].strip()
-        repaired_content, _ = self._repair_engine.fix_malformed_attributes(tag_content)
+        repaired_content, _ = fix_malformed_attributes(
+            tag_content, aggressive_escape=self._repair_engine.escape_unsafe_attributes
+        )
         return f"<{repaired_content}/>"
 
     def _repair_incomplete_tag(self, tag_str: str) -> str:
@@ -554,7 +554,9 @@ class StreamingXMLRepair:
 
             # Repair attributes
             tag_content = tag_str[1:-1].strip()
-            repaired_content, _ = self._repair_engine.fix_malformed_attributes(tag_content)
+            repaired_content, _ = fix_malformed_attributes(
+                tag_content, aggressive_escape=self._repair_engine.escape_unsafe_attributes
+            )
             tag_str = f"<{repaired_content}>"
 
             # Extract tag name to track

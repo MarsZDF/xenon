@@ -119,3 +119,26 @@ class XMLSecurityFilter:
 
         # Remove DOCTYPE declarations (may contain external entities)
         return re.sub(r"<!DOCTYPE(?:[^>\[]|\[.*?\])*>", "", text, flags=re.DOTALL | re.IGNORECASE)
+
+
+def check_max_depth(current_depth: int, max_depth: int | None) -> None:
+    """
+    Check if current nesting depth exceeds max_depth limit.
+
+    Args:
+        current_depth: Current depth level
+        max_depth: Maximum allowed depth (None = unlimited)
+
+    Raises:
+        SecurityError: If depth exceeds max_depth
+    """
+    if max_depth is not None and current_depth > max_depth:
+        from .exceptions import SecurityError
+
+        raise SecurityError(
+            f"Maximum nesting depth {max_depth} exceeded. "
+            f"Current depth: {current_depth}. "
+            f"This may indicate a DoS attack via malicious input, "
+            f"runaway LLM generation, or legitimate deep nesting. "
+            f"Override with max_depth={current_depth + 1000} if this is expected."
+        )
