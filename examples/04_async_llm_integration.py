@@ -247,12 +247,14 @@ async def error_handling_example():
     print("(This should trigger max depth protection)")
     print("-" * 40)
 
+    from xenon.exceptions import SecurityError
+
     try:
         async with StreamingXMLRepair(trust=TrustLevel.UNTRUSTED) as repairer:
             async for chunk in mock_dangerous_stream():
                 async for safe_xml in repairer.feed_async(chunk):
                     pass
-    except RuntimeError as e:
+    except SecurityError as e:
         print(f"✅ Caught expected error: {e}")
 
     print("-" * 40)

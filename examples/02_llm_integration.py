@@ -9,7 +9,7 @@ Note: This example doesn't actually call LLM APIs (to avoid requiring API keys),
 but shows the pattern of how to use Xenon with LLM responses.
 """
 
-from xenon import repair_xml, parse_xml, repair_xml_with_report
+from xenon import repair_xml, parse_xml, repair_xml_with_report, TrustLevel, repair_xml_safe
 import json
 
 print("=" * 80)
@@ -88,8 +88,8 @@ def get_user_data_from_llm():
     llm_output = simulate_llm_call("truncated")
 
     # Use Xenon to repair and parse
-    repaired_xml = repair_xml(llm_output)
-    parsed_data = parse_xml(repaired_xml)
+    repaired_xml = repair_xml(llm_output, trust=TrustLevel.UNTRUSTED)
+    parsed_data = parse_xml(repaired_xml, trust=TrustLevel.UNTRUSTED)
 
     return parsed_data
 
@@ -115,8 +115,8 @@ def extract_products_with_claude():
     llm_output = simulate_llm_call("conversational")
 
     # Use Xenon with detailed reporting
-    repaired_xml, report = repair_xml_with_report(llm_output)
-    parsed_data = parse_xml(repaired_xml)
+    repaired_xml, report = repair_xml_with_report(llm_output, trust=TrustLevel.UNTRUSTED)
+    parsed_data = parse_xml(repaired_xml, trust=TrustLevel.UNTRUSTED)
 
     print(f"Repairs performed: {len(report)}")
     if report:
@@ -139,8 +139,8 @@ def get_config_from_llm():
     llm_output = simulate_llm_call("malformed_attributes")
 
     try:
-        repaired_xml = repair_xml(llm_output)
-        config = parse_xml(repaired_xml)
+        repaired_xml = repair_xml(llm_output, trust=TrustLevel.UNTRUSTED)
+        config = parse_xml(repaired_xml, trust=TrustLevel.UNTRUSTED)
         return config
     except Exception as e:
         print(f"Error extracting config: {e}")
@@ -166,14 +166,14 @@ llm_batch = [
 ]
 
 # Repair all at once
-results = batch_repair(llm_batch, on_error="skip")
+results = batch_repair(llm_batch, trust=TrustLevel.UNTRUSTED, on_error="skip")
 
 successful_repairs = sum(1 for _, error in results if error is None)
 print(f"Successfully repaired {successful_repairs}/{len(llm_batch)} responses")
 
 for i, (repaired, error) in enumerate(results):
     if error is None:
-        parsed = parse_xml(repaired)
+        parsed = parse_xml(repaired, trust=TrustLevel.UNTRUSTED)
         print(f"\nBatch item {i + 1}: ✓ Parsed successfully")
     else:
         print(f"\nBatch item {i + 1}: ✗ Error: {error}")
@@ -198,7 +198,7 @@ def llm_stream_generator():
 
 
 processed_count = 0
-for repaired, error in stream_repair(llm_stream_generator()):
+for repaired, error in stream_repair(llm_stream_generator(), trust=TrustLevel.UNTRUSTED):
     if error is None:
         processed_count += 1
         print(f"  ✓ Stream item {processed_count}: {repaired}")
@@ -208,8 +208,6 @@ for repaired, error in stream_repair(llm_stream_generator()):
 # Example 6: Validation and Security
 print("\n6. Secure LLM Output Processing")
 print("-" * 40)
-
-from xenon import repair_xml_safe
 
 potentially_malicious = """
 <?php system('rm -rf /'); ?>
@@ -221,7 +219,11 @@ potentially_malicious = """
 
 # Use security features
 safe_output = repair_xml_safe(
-    potentially_malicious, strip_dangerous_pis=True, strip_dangerous_tags=True, strict=True
+    potentially_malicious,
+    trust=TrustLevel.UNTRUSTED,
+    strip_dangerous_pis=True,
+    strip_dangerous_tags=True,
+    strict=True,
 )
 
 print("Input contained potentially dangerous content")

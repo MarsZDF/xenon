@@ -13,6 +13,7 @@ from xenon import (
     XMLRepairConfig,
     SecurityFlags,
     RepairFlags,
+    TrustLevel,
 )
 from xenon.utils import (
     batch_repair_with_reports,
@@ -32,7 +33,7 @@ print("-" * 40)
 xml = "<root><user name=Alice>Tom & Jerry<item>unclosed"
 print(f"Input: {xml}")
 
-repaired, report = repair_xml_with_report(xml)
+repaired, report = repair_xml_with_report(xml, trust=TrustLevel.UNTRUSTED)
 print(f"Output: {repaired}\n")
 print(report.summary())
 print(f"\nStatistics: {report.statistics()}")
@@ -41,14 +42,14 @@ print(f"\nStatistics: {report.statistics()}")
 print("\n2. Using Configuration Objects")
 print("-" * 40)
 
-# Old way (still supported)
+# Old way (still supported but not recommended for new code)
 engine_old = XMLRepairEngine(
     strip_dangerous_pis=True,
     strip_external_entities=True,
     sanitize_invalid_tags=True,
 )
 
-# New way (recommended)
+# New way (recommended) - Use TrustLevel to set defaults
 config = XMLRepairConfig(
     security=SecurityFlags.STRIP_DANGEROUS_PIS | SecurityFlags.STRIP_EXTERNAL_ENTITIES,
     repair=RepairFlags.SANITIZE_INVALID_TAGS,
@@ -57,7 +58,7 @@ engine_new = XMLRepairEngine(config)
 
 test_xml = '<123invalid><?php echo "test"; ?><data>content</data></123invalid>'
 print(f"Input: {test_xml}")
-result = engine_new.repair_xml(test_xml)
+result = engine_new.repair_xml(test_xml)[0]  # repair_xml returns (str, report) in new engine
 print(f"Output: {result}")
 
 # Example 3: Security Features
@@ -80,6 +81,7 @@ print("Input contains: <?php>, DOCTYPE with SYSTEM entity, <script>, <iframe>")
 
 safe_result = repair_xml_safe(
     dangerous_xml,
+    trust=TrustLevel.UNTRUSTED,
     strip_dangerous_pis=True,
     strip_external_entities=True,
     strip_dangerous_tags=True,
@@ -99,6 +101,7 @@ xml_batch = [
 
 results = batch_repair_with_reports(
     xml_batch,
+    trust=TrustLevel.UNTRUSTED,
     filter_func=lambda r: len(r) > 0,  # Only return items that needed repairs
 )
 
@@ -168,7 +171,7 @@ multiple_roots = """
 <user>Charlie</user>
 """
 
-wrapped = repair_xml_safe(multiple_roots, wrap_multiple_roots=True)
+wrapped = repair_xml_safe(multiple_roots, trust=TrustLevel.UNTRUSTED, wrap_multiple_roots=True)
 print(f"Input (multiple roots):\n{multiple_roots.strip()}")
 print(f"\nOutput (wrapped):\n{wrapped}")
 
@@ -200,7 +203,7 @@ complex_xml = """
 <another>root</another>
 """
 
-result = engine.repair_xml(complex_xml)
+result = engine.repair_xml(complex_xml)[0]
 print(f"Input (multiple issues):\n{complex_xml.strip()}")
 print(f"\nOutput (all fixes applied):\n{result}")
 
@@ -214,7 +217,7 @@ test_xml = "<root>" + "<item>data</item>" * 100 + "</root>"
 
 start = time.perf_counter()
 for _ in range(1000):
-    repair_xml_safe(test_xml)
+    repair_xml_safe(test_xml, trust=TrustLevel.TRUSTED)
 end = time.perf_counter()
 
 avg_time = (end - start) / 1000 * 1000  # Convert to milliseconds
