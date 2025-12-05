@@ -67,6 +67,23 @@ def escape_attribute_value(
     return value
 
 
+# Pre-compiled regex for attribute parsing
+# Matches: name = "value" OR name = 'value' OR name = value
+ATTR_PATTERN = re.compile(
+    r"""
+    \s+                         # Required whitespace before attribute
+    (?P<name>[a-zA-Z_:][\w:.-]*) # Attribute name
+    \s*=\s*                     # Equals sign with optional whitespace
+    (?P<value>
+        "(?P<v_double>[^"]*)"|  # Double-quoted value
+        '(?P<v_single>[^']*)'|  # Single-quoted value
+        (?P<v_unquoted>[^\s=]+) # Unquoted value
+    )
+    """,
+    re.VERBOSE,
+)
+
+
 def fix_malformed_attributes(
     tag_content: str, aggressive_escape: bool = False
 ) -> Tuple[str, List[RepairAction]]:
@@ -86,148 +103,150 @@ def fix_malformed_attributes(
     Returns:
         Tuple of (repaired_content, list of repair actions)
     """
-    actions: List[RepairAction] = []
     content = tag_content.strip()
 
-    # Extract tag name first (everything before the first = or first space followed by word=)
-    tag_name = ""
-    attr_start_pos = 0
-    i = 0
-
-    # Read the tag name (first word)
-    while i < len(content) and not content[i].isspace():
-        i += 1
-
-    if i < len(content):
-        tag_name = content[:i]
-        # Skip whitespace after tag name
-        while i < len(content) and content[i].isspace():
-            i += 1
-        attr_start_pos = i
-    else:
-        # No attributes, just tag name
+    # Fast path: no equals sign means no attributes (or boolean attributes which we ignore/preserve as text)
+    if "=" not in content:
         return content, []
 
-    # Now parse attributes
-    result = [tag_name]
-    seen_attrs: Set[str] = set()  # Track attributes to remove duplicates
-    i = attr_start_pos
+    # Extract tag name first (everything before the first space)
+    # Manual scan is faster than regex or split for just finding first space
+    n = len(content)
+    i = 0
+    while i < n and not content[i].isspace():
+        i += 1
 
-    while i < len(content):
+    tag_name = content[:i]
+
+    # If we reached end, no attributes
+    if i == n:
+        return content, []
+
+    return _fix_attributes_manual(content, tag_name, i, aggressive_escape)
+
+
+def _fix_attributes_manual(
+    content: str, tag_name: str, start_pos: int, aggressive_escape: bool
+) -> Tuple[str, List[RepairAction]]:
+    actions: List[RepairAction] = []
+    result = [tag_name]
+    seen_attrs: Set[str] = set()
+    n = len(content)
+    i = start_pos
+
+    while i < n:
         # Skip whitespace
-        while i < len(content) and content[i].isspace():
+        while i < n and content[i].isspace():
             i += 1
 
-        if i >= len(content):
+        if i >= n:
             break
 
-        # Look for attribute pattern: name=value
         attr_start = i
 
-        # Find attribute name
-        while i < len(content) and (content[i].isalnum() or content[i] in "_-:"):
+        # Find attribute name (fast scan until space or =)
+        while i < n and content[i] not in " =":
             i += 1
 
-        if i >= len(content) or content[i] != "=":
-            # Not an attribute, just copy the rest
-            result.append(" ")
-            result.append(content[attr_start:])
-            break
+        if i >= n or content[i] != "=":
+            # Not a key=value, check if we stopped at space before =
+            if i < n and content[i].isspace():
+                # Look ahead for =
+                j = i
+                while j < n and content[j].isspace():
+                    j += 1
+                if j < n and content[j] == "=":
+                    # It is an attribute: attr = val
+                    attr_name = content[attr_start:i]
+                    i = j + 1  # Skip =
+                else:
+                    # Boolean attribute or garbage, just copy
+                    result.append(" ")
+                    result.append(content[attr_start:i])
+                    # If we stopped at i, continue from there
+                    continue
+            else:
+                # Garbage or boolean at end
+                result.append(" ")
+                result.append(content[attr_start:])
+                break
+        else:
+            # Found =
+            attr_name = content[attr_start:i]
+            i += 1
 
-        attr_name = content[attr_start:i]
-        attr_name_lower = attr_name.lower()  # Case-insensitive duplicate check
-        i += 1  # Skip the '='
+        attr_name_lower = attr_name.lower()
 
-        # Skip if this is a duplicate attribute
+        # Duplicate check
         if attr_name_lower in seen_attrs:
             actions.append(
                 RepairAction(
-                    repair_type=RepairType.DUPLICATE_ATTRIBUTE,
-                    description=f"Removed duplicate attribute '{attr_name_lower}'",
+                    RepairType.DUPLICATE_ATTRIBUTE,
+                    f"Removed duplicate attribute '{attr_name_lower}'",
                     location=tag_name,
                 )
             )
-            # Parse the value but don't add to result
-            if i < len(content) and content[i] in ['"', "'"]:
-                quote_char = content[i]
+            # Skip value
+            if i < n and content[i] in "\"'":
+                q = content[i]
                 i += 1
-                while i < len(content) and content[i] != quote_char:
+                while i < n and content[i] != q:
                     i += 1
-                if i < len(content):
+                if i < n:
                     i += 1
             else:
-                # Unquoted value
-                while i < len(content):
-                    if content[i].isspace():
-                        j = i
-                        while j < len(content) and content[j].isspace():
-                            j += 1
-                        if j < len(content):
-                            k = j
-                            while k < len(content) and (
-                                content[k].isalnum() or content[k] in "_-:"
-                            ):
-                                k += 1
-                            if k < len(content) and content[k] == "=":
-                                break
+                # Unquoted value, skip until space
+                while i < n and not content[i].isspace():
                     i += 1
             continue
 
         seen_attrs.add(attr_name_lower)
 
-        if i >= len(content):
-            result.append(f' {attr_name}="')
-            break
-
-        # Handle the value
-        if content[i] in ['"', "'"]:
-            # Already quoted, find the end quote
-            quote_char = content[i]
-            value_start = i + 1  # Start after the opening quote
+        # Skip whitespace before value
+        while i < n and content[i].isspace():
             i += 1
-            while i < len(content) and content[i] != quote_char:
-                i += 1
-            value = content[value_start:i]  # Value without quotes
-            if i < len(content):
-                i += 1  # Skip the closing quote
-            # Escape the value and add with quotes
-            escaped_value = escape_attribute_value(
-                value, quote_char, aggressive_escape=aggressive_escape
-            )
-            result.append(f" {attr_name}={quote_char}{escaped_value}{quote_char}")
+
+        # Handle value
+        # Check for quoted value
+        if i < n and content[i] in "\"'":
+            q = content[i]
+            val_start = i + 1
+            val_end = content.find(q, val_start)
+
+            if val_end == -1:
+                # Unclosed quote
+                val = content[val_start:]
+                i = n
+            else:
+                val = content[val_start:val_end]
+                i = val_end + 1
+
+            escaped = escape_attribute_value(val, q, aggressive_escape)
+            result.append(f" {attr_name}={q}{escaped}{q}")
         else:
-            # Unquoted value, collect until next attribute or end
-            value_start = i
+            # Unquoted or empty
+            # Check if empty (next char is space or end)
+            if i >= n or content[i].isspace():
+                # Empty value: attr=
+                result.append(f' {attr_name}=""')
+                continue
 
-            # Collect value until we hit the next attribute (word=) or end
-            while i < len(content):
-                if content[i].isspace():
-                    # Look ahead to see if this is the start of a new attribute
-                    j = i
-                    while j < len(content) and content[j].isspace():
-                        j += 1
-
-                    # Check if we have word= pattern ahead
-                    if j < len(content):
-                        while j < len(content) and (content[j].isalnum() or content[j] in "_-:"):
-                            j += 1
-                        if j < len(content) and content[j] == "=":
-                            # This is a new attribute, stop here
-                            break
+            val_start = i
+            # Find end of unquoted value (space)
+            while i < n and not content[i].isspace():
                 i += 1
+            val = content[val_start:i]
 
-            value = content[value_start:i].strip()
-            # Report this action
-            escaped_value = escape_attribute_value(value, '"', aggressive_escape=aggressive_escape)
+            escaped = escape_attribute_value(val, '"', aggressive_escape)
             actions.append(
                 RepairAction(
-                    repair_type=RepairType.MALFORMED_ATTRIBUTE,
-                    description=f"Added quotes to unquoted attribute '{attr_name}'",
+                    RepairType.MALFORMED_ATTRIBUTE,
+                    f"Added quotes to unquoted attribute '{attr_name}'",
                     location=tag_name,
-                    before=f"{attr_name}={value}",
-                    after=f'{attr_name}="{escaped_value}"',
+                    before=f"{attr_name}={val}",
+                    after=f'{attr_name}="{escaped}"',
                 )
             )
-            result.append(f' {attr_name}="{escaped_value}"')
+            result.append(f' {attr_name}="{escaped}"')
 
     return "".join(result), actions

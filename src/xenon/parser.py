@@ -345,11 +345,20 @@ class XMLRepairEngine:
             r"\s*\n\s*[A-Z][^<]*$",  # Newline followed by sentence not containing <
         ]
 
+        # Optimization: Only search in the last 2000 characters for large inputs
+        # Conversational fluff at the end rarely exceeds this length
+        search_text = text[xml_start:]
+        search_offset = xml_start
+
+        if len(search_text) > 2000:
+            search_offset = xml_start + len(search_text) - 2000
+            search_text = text[search_offset:]
+
         # Only trim if we find clear conversational patterns
         for pattern in end_patterns:
-            match = re.search(pattern, text[xml_start:], re.IGNORECASE)
+            match = re.search(pattern, search_text, re.IGNORECASE)
             if match:
-                potential_end = xml_start + match.start()
+                potential_end = search_offset + match.start()
                 # Make sure we end at a > if possible
                 for i in range(potential_end - 1, xml_start, -1):
                     if text[i] == ">":
@@ -468,14 +477,22 @@ class XMLRepairEngine:
                 if not (next_char.isalpha() or next_char in "_:/!?"):
                     # Not a tag start, treat as text content
                     text_start = i
-                    while i < len(xml_string) and (
-                        xml_string[i] != "<"
-                        or (
-                            i + 1 < len(xml_string)
-                            and not (xml_string[i + 1].isalpha() or xml_string[i + 1] in "_:/!?")
-                        )
-                    ):
-                        i += 1
+
+                    # Optimization: Use find to skip ahead
+                    while i < len(xml_string):
+                        next_lt = xml_string.find("<", i + 1)
+                        if next_lt == -1:
+                            i = len(xml_string)
+                            break
+
+                        # Check if this < starts a tag
+                        if next_lt + 1 < len(xml_string):
+                            nc = xml_string[next_lt + 1]
+                            if nc.isalpha() or nc in "_:/!?":
+                                i = next_lt
+                                break
+                        i = next_lt + 1  # This < was text, continue searching
+
                     text_content = xml_string[text_start:i]
                     if text_content:
                         tokens.append(XMLToken("text", text_content, text_start))
@@ -596,8 +613,12 @@ class XMLRepairEngine:
             else:
                 # Text content
                 text_start = i
-                while i < len(xml_string) and xml_string[i] != "<":
-                    i += 1
+                # Optimization: Use find instead of loop
+                next_lt = xml_string.find("<", i)
+                if next_lt == -1:
+                    i = len(xml_string)
+                else:
+                    i = next_lt
 
                 text_content = xml_string[text_start:i]
                 if text_content.strip():
