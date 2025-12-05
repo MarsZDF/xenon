@@ -165,7 +165,7 @@ def fix_malformed_attributes(
                         if j < len(content):
                             k = j
                             while k < len(content) and (
-                                content[k].isalnum() or content[k] in "-_:"
+                                content[k].isalnum() or content[k] in "_-:"
                             ):
                                 k += 1
                             if k < len(content) and content[k] == "=":
@@ -209,7 +209,7 @@ def fix_malformed_attributes(
 
                     # Check if we have word= pattern ahead
                     if j < len(content):
-                        while j < len(content) and (content[j].isalnum() or content[j] in "-_:"):
+                        while j < len(content) and (content[j].isalnum() or content[j] in "_-:"):
                             j += 1
                         if j < len(content) and content[j] == "=":
                             # This is a new attribute, stop here
