@@ -48,7 +48,7 @@ class XenonXMLOutputParser(BaseOutputParser):  # type: ignore
     trust: TrustLevel = TrustLevel.UNTRUSTED
     return_dict: bool = True
     """If True, returns a dict. If False, returns the repaired XML string."""
-    
+
     # Xenon configuration options
     strip_dangerous_pis: Optional[bool] = None
     strip_external_entities: Optional[bool] = None
