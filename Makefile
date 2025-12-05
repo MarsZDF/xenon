@@ -27,7 +27,7 @@ install:
 	@echo "✅ Installation complete."
 
 # Run all checks (what CI runs)
-check: lint format typecheck test
+check: lint format typecheck security test
 	@echo ""
 	@echo "✅ All checks passed! Safe to push."
 
@@ -57,6 +57,11 @@ format:
 typecheck:
 	@echo "🔬 Type checking..."
 	mypy src/xenon --strict
+
+# Security check (Bandit)
+security:
+	@echo "🔒 Security check..."
+	python -m bandit -r src/ -c pyproject.toml
 
 # Clean cache files
 clean:
