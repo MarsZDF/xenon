@@ -54,7 +54,7 @@ from .utils import (
 )
 from .validation import validate_repaired_output, validate_xml_input
 
-__version__ = "1.0.0"
+__version__ = "1.1.0a1"
 __author__ = "Xenon Contributors"
 
 # Initialize the engine once for module-level functions
