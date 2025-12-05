@@ -77,6 +77,26 @@ with StreamingXMLRepair(trust=TrustLevel.UNTRUSTED) as repairer:
 # Output: <user id="1">Alice</user>
 ```
 
+## 🔗 Integrations
+
+### LangChain
+Xenon provides a drop-in `XenonXMLOutputParser` for LangChain pipelines.
+
+```python
+from xenon.integrations.langchain import XenonXMLOutputParser
+from xenon import TrustLevel
+
+# Create the parser
+parser = XenonXMLOutputParser(
+    trust=TrustLevel.UNTRUSTED,
+    return_dict=True  # Returns dict, set False for string
+)
+
+# Use in your chain
+chain = prompt | llm | parser
+result = chain.invoke({"query": "Generate user XML"})
+```
+
 ## 🛠️ Common Repair Scenarios
 
 Xenon automatically handles the most common LLM failure modes:
@@ -156,6 +176,35 @@ repaired = repair_xml_safe(
     format_output="pretty",      # Auto-format result
     schema_content=my_xsd_schema # Validate against XSD schema
 )
+```
+
+### Audit Logging
+
+For enterprise use cases requiring traceability (SOC 2, ISO 27001), Xenon can log security events:
+
+```python
+from xenon.audit import AuditLogger
+
+# Configure logger
+logger = AuditLogger()
+
+# Usage
+repair_xml_safe(
+    untrusted_input,
+    trust=TrustLevel.UNTRUSTED,
+    audit_logger=logger
+)
+
+# Export logs
+logs = logger.to_json()
+# [
+#   {
+#     "timestamp": "2023-10-27T...",
+#     "threats_detected": ["dangerous_pi"],
+#     "actions_taken": ["DANGEROUS_PI_STRIPPED: Removed..."],
+#     ...
+#   }
+# ]
 ```
 
 ## Interactive Demo

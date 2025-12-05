@@ -368,6 +368,24 @@ def parse_xml_safe(
     strict: Optional[bool] = None,
     allow_empty: bool = False,
     max_size: Optional[int] = None,
+    # Security overrides
+    strip_dangerous_pis: Optional[bool] = None,
+    strip_external_entities: Optional[bool] = None,
+    strip_dangerous_tags: Optional[bool] = None,
+    escape_unsafe_attributes: Optional[bool] = None,
+    max_depth: Optional[int] = None,
+    validate_output_schema: Optional[bool] = None,
+    # Repair features
+    wrap_multiple_roots: bool = False,
+    sanitize_invalid_tags: bool = False,
+    fix_namespace_syntax: bool = False,
+    auto_wrap_cdata: bool = False,
+    # v0.6.0 Features
+    format_output: Optional[FormatStyle] = None,
+    html_entities: Optional[str] = None,
+    normalize_unicode: bool = False,
+    # Schema validation
+    schema_content: Optional[str] = None,
 ) -> Dict[str, Any]:
     """
     Safely parse malformed XML to dictionary with error handling.
@@ -381,6 +399,7 @@ def parse_xml_safe(
         strict: If True, validate repaired XML structure. Defaults based on trust.
         allow_empty: If True, accept empty input (returns {})
         max_size: Maximum input size in bytes. None = no limit (default: 100MB)
+        **kwargs: All other arguments supported by repair_xml_safe()
 
     Returns:
         Dictionary representation of the XML
@@ -402,7 +421,25 @@ def parse_xml_safe(
     """
     # Use repair_xml_safe for validation and repair
     repaired = repair_xml_safe(
-        xml_string, trust=trust, strict=strict, allow_empty=allow_empty, max_size=max_size
+        xml_string,
+        trust=trust,
+        strict=strict,
+        allow_empty=allow_empty,
+        max_size=max_size,
+        strip_dangerous_pis=strip_dangerous_pis,
+        strip_external_entities=strip_external_entities,
+        strip_dangerous_tags=strip_dangerous_tags,
+        escape_unsafe_attributes=escape_unsafe_attributes,
+        max_depth=max_depth,
+        validate_output_schema=validate_output_schema,
+        wrap_multiple_roots=wrap_multiple_roots,
+        sanitize_invalid_tags=sanitize_invalid_tags,
+        fix_namespace_syntax=fix_namespace_syntax,
+        auto_wrap_cdata=auto_wrap_cdata,
+        format_output=format_output,
+        html_entities=html_entities,
+        normalize_unicode=normalize_unicode,
+        schema_content=schema_content,
     )
 
     # Handle empty case
