@@ -141,6 +141,7 @@ def get_security_config(
     strict: Optional[bool] = None,
     audit_threats: Optional[bool] = None,
     validate_output_schema: Optional[bool] = None,
+    audit_logger: Optional["AuditLogger"] = None,
 ) -> SecurityConfig:
     """
     Get security configuration for a trust level.
@@ -184,6 +185,7 @@ def get_security_config(
             strict=True,
             audit_threats=True,
             validate_output_schema=True,
+            audit_logger=audit_logger,
         )
     elif trust == TrustLevel.INTERNAL:
         defaults = SecurityConfig(
@@ -196,6 +198,7 @@ def get_security_config(
             strict=False,
             audit_threats=False,
             validate_output_schema=False,
+            audit_logger=audit_logger,
         )
     else:  # TRUSTED
         defaults = SecurityConfig(
@@ -208,6 +211,7 @@ def get_security_config(
             strict=False,
             audit_threats=False,
             validate_output_schema=False,
+            audit_logger=audit_logger,
         )
 
     # Apply overrides
@@ -227,6 +231,8 @@ def get_security_config(
         defaults.audit_threats = audit_threats
     if validate_output_schema is not None:
         defaults.validate_output_schema = validate_output_schema
+    if audit_logger is not None:
+        defaults.audit_logger = audit_logger
 
     return defaults
 

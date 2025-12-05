@@ -8,6 +8,7 @@ from .reporting import RepairReport, RepairType
 from .security import XMLSecurityFilter, check_max_depth
 
 if TYPE_CHECKING:
+    from .audit import AuditLogger
     from .reporting import RepairReport
     from .trust import TrustLevel
 
@@ -54,6 +55,8 @@ class XMLRepairEngine:
         auto_wrap_cdata: bool = False,
         max_depth: Optional[int] = None,
         schema_content: Optional[str] = None,
+        audit_logger: Optional["AuditLogger"] = None,
+        trust_level: Optional[str] = None,
     ):
         """
         Initialize XML repair engine.
@@ -86,6 +89,8 @@ class XMLRepairEngine:
                       None = unlimited (default for backward compatibility).
                       Recommended: 1000 for untrusted input, 10000 for internal use.
             schema_content: Content of the schema (XSD or DTD) for post-repair validation.
+            trust_level: The trust level used for configuration (e.g., "untrusted", "internal").
+                        Used primarily for audit logging.
 
         Examples:
             >>> # Using config object (recommended)
@@ -112,6 +117,8 @@ class XMLRepairEngine:
                 fix_namespace_syntax=fix_namespace_syntax,
                 auto_wrap_cdata=auto_wrap_cdata,
                 schema_content=schema_content,
+                audit_logger=audit_logger,
+                trust_level=trust_level,
             )
 
         self.config = config
@@ -121,6 +128,7 @@ class XMLRepairEngine:
         # Initialize components
         self.preprocessor = XMLPreprocessor(config)
         self.security_filter = XMLSecurityFilter(config)
+        self.audit_logger = config.audit_logger
 
         # Backward compatibility properties
         self.match_threshold = config.match_threshold
@@ -139,7 +147,9 @@ class XMLRepairEngine:
         self.schema_content = config.schema_content
 
     @classmethod
-    def from_trust_level(cls, trust: "TrustLevel") -> "XMLRepairEngine":
+    def from_trust_level(
+        cls, trust: "TrustLevel", audit_logger: Optional["AuditLogger"] = None
+    ) -> "XMLRepairEngine":
         """
         Create XMLRepairEngine configured for a specific trust level.
 
@@ -149,6 +159,7 @@ class XMLRepairEngine:
 
         Args:
             trust: TrustLevel indicating the security posture to use
+            audit_logger: Optional AuditLogger for security auditing
 
         Returns:
             XMLRepairEngine configured with appropriate security settings
@@ -168,7 +179,7 @@ class XMLRepairEngine:
         """
         from xenon.trust import get_security_config
 
-        config_obj = get_security_config(trust)
+        config_obj = get_security_config(trust, audit_logger=audit_logger)
 
         return cls(
             strip_dangerous_pis=config_obj.strip_dangerous_pis,
@@ -177,6 +188,8 @@ class XMLRepairEngine:
             escape_unsafe_attributes=config_obj.escape_unsafe_attributes,
             max_depth=config_obj.max_depth,
             schema_content=None,  # from_trust_level doesn't provide a schema content by default
+            audit_logger=config_obj.audit_logger,
+            trust_level=trust.value,
         )
 
     def is_dangerous_pi(self, pi_content: str) -> bool:
@@ -867,6 +880,54 @@ class XMLRepairEngine:
             repaired = self._wrap_multiple_roots(repaired)
 
         report.repaired_xml = repaired
+
+        # Step 6: Audit logging (if enabled)
+        if self.audit_logger:
+            # We need to map RepairReport actions to simple strings
+            actions_taken = [f"{a.repair_type.name}: {a.description}" for a in report.actions]
+            # We don't have a "Threat" object from the parser directly, as parser handles
+            # threats via actions (e.g. DANGEROUS_TAG_STRIPPED).
+            # However, the ThreatDetector (if we used it separately) would give threats.
+            # For now, let's map specific repair types to "detected threats" for the log.
+
+            # Implicit threat detection from actions
+            threats_detected = []
+            for action in report.actions:
+                if action.repair_type in (
+                    RepairType.DANGEROUS_PI_STRIPPED,
+                    RepairType.DANGEROUS_TAG_STRIPPED,
+                    RepairType.EXTERNAL_ENTITY_STRIPPED,
+                ):
+                    threats_detected.append(action.repair_type.name)
+
+            # Note: We don't pass raw 'Threat' objects here because parser doesn't use ThreatDetector
+            # directly in this flow (it uses SecurityFilter). We could enhance this later.
+            # For now, we log the actions.
+
+            # We'll create a dummy list of threats for the logger signature for now,
+            # or update the logger to accept strings. The AuditLogger expects List[Threat].
+            # This is a bit of a mismatch. Ideally, parser should use ThreatDetector.
+
+            # Let's just use the ThreatDetector to analyze the INPUT if logging is enabled!
+            # This gives us proper Threat objects.
+            from .audit import ThreatDetector
+
+            detector = ThreatDetector()
+            detected_threats = detector.detect_threats(xml_string)
+
+            self.audit_logger.log_repair_operation(
+                xml_input=xml_string,
+                xml_output=repaired,
+                trust_level=self.config.trust_level or "unknown",
+                threats=detected_threats,
+                actions_taken=actions_taken,
+                security_flags={
+                    "strip_pis": self.strip_dangerous_pis,
+                    "strip_entities": self.strip_external_entities,
+                    "strip_tags": self.strip_dangerous_tags,
+                },
+            )
+
         return repaired, report
 
     def _wrap_multiple_roots(self, xml_string: str) -> str:

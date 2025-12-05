@@ -2,7 +2,10 @@
 
 from dataclasses import dataclass
 from enum import Flag, auto
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
+
+if TYPE_CHECKING:
+    from .audit import AuditLogger, SecurityMetrics
 
 
 class SecurityFlags(Flag):
@@ -51,6 +54,9 @@ class XMLRepairConfig:
     security: SecurityFlags = SecurityFlags.NONE
     repair: RepairFlags = RepairFlags.NONE
     schema_content: Optional[str] = None
+    audit_logger: Optional["AuditLogger"] = None
+    metrics: Optional["SecurityMetrics"] = None
+    trust_level: Optional[str] = None
 
     @classmethod
     def from_booleans(
@@ -65,6 +71,8 @@ class XMLRepairConfig:
         fix_namespace_syntax: bool = False,
         auto_wrap_cdata: bool = False,
         schema_content: Optional[str] = None,
+        audit_logger: Optional["AuditLogger"] = None,
+        trust_level: Optional[str] = None,
     ) -> "XMLRepairConfig":
         """
         Create config from individual boolean parameters.
@@ -96,6 +104,8 @@ class XMLRepairConfig:
             security=security,
             repair=repair,
             schema_content=schema_content,
+            audit_logger=audit_logger,
+            trust_level=trust_level,
         )
 
     def has_security_feature(self, flag: SecurityFlags) -> bool:
