@@ -13,7 +13,7 @@ In the era of RAG and AI agents, applications increasingly rely on structured da
 - **LLM-Focused Repair**: specifically handles truncation, hallucinations, and conversational text ("Here is your XML: ...").
 - **Secure by Default**: Explicit `TrustLevel` system to prevent XSS and injection attacks from untrusted sources.
 - **Real-Time Streaming**: Repair XML token-by-token as it arrives from the LLM (compatible with OpenAI/Anthropic streams).
-- **Zero Dependencies**: Lightweight and fast; uses only the Python Standard Library.
+- **Zero Runtime Dependencies**: Core functionality uses only the Python Standard Library. (Optional `lxml` support for schema validation).
 - **Smart Matching**: Uses Levenshtein distance to fix typoed tags (e.g., `</usre>` → `</user>`).
 - **Formatting & Diffs**: Built-in pretty-printing and diff generation to visualize repairs.
 
