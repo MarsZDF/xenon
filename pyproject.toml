@@ -45,7 +45,6 @@ classifiers = [
     "Topic :: Security",
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Topic :: Text Processing :: Markup :: XML",
-    "Framework :: LangChain",
 ]
 
 # Zero runtime dependencies - uses only Python Standard Library
