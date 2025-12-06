@@ -91,8 +91,7 @@ jobs:
         run: pip install bandit
 
       - name: Run Bandit security scan
-        # We don't have a make target for this yet, but we could add one
-        run: bandit -r src/ -c pyproject.toml
+        run: make security
 
   build:
     name: Build Distribution
