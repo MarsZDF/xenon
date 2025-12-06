@@ -23,10 +23,16 @@ keywords = [
     "security",
     "trust-levels",
     "audit",
+    "rag",
+    "langchain",
+    "openai",
+    "hallucination-repair",
+    "generative-ai",
 ]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
@@ -39,6 +45,7 @@ classifiers = [
     "Topic :: Security",
     "Topic :: Software Development :: Libraries :: Python Modules",
     "Topic :: Text Processing :: Markup :: XML",
+    "Framework :: LangChain",
 ]
 
 # Zero runtime dependencies - uses only Python Standard Library
