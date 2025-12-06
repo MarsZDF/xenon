@@ -58,14 +58,14 @@ class TestEncodingDetection:
     def test_detect_utf8_without_bom(self):
         """Test UTF-8 detection without BOM."""
         data = "<root>café</root>".encode()
-        encoding, confidence = detect_encoding(data)
+        encoding, _confidence = detect_encoding(data)
 
         assert encoding.lower() == "utf-8"
 
     def test_detect_latin1(self):
         """Test Latin-1 detection."""
         data = "<root>caf\xe9</root>".encode("latin-1")
-        encoding, confidence = detect_encoding(data)
+        encoding, _confidence = detect_encoding(data)
 
         # Should detect some encoding (exact one may vary)
         assert encoding in ["latin-1", "iso-8859-1", "cp1252", "utf-8"]

@@ -437,4 +437,4 @@ class TestXSSProtection:
         """Test that aggressive escaping is applied to text nodes."""
         xml = "<root>'> <script>alert(1)</script></root>"
         result = repair_xml_safe(xml, trust=TrustLevel.UNTRUSTED)
-        assert "<root>&apos;&gt;&#x20;alert(1)</root>" == result
+        assert result == "<root>&apos;&gt;&#x20;alert(1)</root>"

@@ -280,14 +280,14 @@ class TestValidateXMLStructure:
     def test_validate_escaped_ampersand(self):
         """Test that escaped ampersands are OK."""
         xml = "<root>Tom &amp; Jerry</root>"
-        is_valid, issues = validate_xml_structure(xml)
+        _is_valid, issues = validate_xml_structure(xml)
         # Should not flag escaped ampersands
         assert not any("ampersand" in issue for issue in issues)
 
     def test_validate_entity_references(self):
         """Test that entity references are not flagged."""
         xml = "<root>&lt; &gt; &quot; &apos; &#65; &#x41;</root>"
-        is_valid, issues = validate_xml_structure(xml)
+        _is_valid, issues = validate_xml_structure(xml)
         # Should not flag valid entity references
         assert not any("ampersand" in issue for issue in issues)
 
@@ -301,14 +301,14 @@ class TestValidateXMLStructure:
     def test_validate_quoted_attributes(self):
         """Test that quoted attributes are OK."""
         xml = "<root attr=\"value\" other='value2'>text</root>"
-        is_valid, issues = validate_xml_structure(xml)
+        _is_valid, issues = validate_xml_structure(xml)
         # Should not flag quoted attributes
         assert not any("attribute" in issue for issue in issues)
 
     def test_validate_self_closing_tags(self):
         """Test that self-closing tags are handled."""
         xml = "<root><item/><item/></root>"
-        is_valid, issues = validate_xml_structure(xml)
+        _is_valid, _issues = validate_xml_structure(xml)
         # Self-closing tags should not cause tag mismatch
         # Note: The current implementation may not perfectly handle this
         # This test documents the behavior

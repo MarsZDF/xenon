@@ -120,13 +120,13 @@ class TestEncodingBenchmarks:
     def test_detect_encoding_utf8(self):
         """Benchmark detecting UTF-8 encoding."""
         xml_bytes = b'<?xml version="1.0" encoding="UTF-8"?><root>test</root>'
-        encoding, confidence = detect_encoding(xml_bytes)
+        encoding, _confidence = detect_encoding(xml_bytes)
         assert encoding.lower() == "utf-8"
 
     def test_detect_encoding_with_bom(self):
         """Benchmark detecting encoding with BOM."""
         xml_bytes = b"\xef\xbb\xbf<root>test</root>"
-        encoding, confidence = detect_encoding(xml_bytes)
+        encoding, _confidence = detect_encoding(xml_bytes)
         assert "utf-8" in encoding.lower()
 
 

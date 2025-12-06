@@ -1,5 +1,5 @@
 import re
-from typing import TYPE_CHECKING, Any, Dict, List, Match, Optional, Tuple
+from typing import TYPE_CHECKING, Any, ClassVar, Dict, List, Match, Optional, Tuple
 
 from .attribute_parser import fix_malformed_attributes
 from .config import RepairFlags, SecurityFlags, XMLRepairConfig
@@ -33,7 +33,7 @@ class XMLParseState:
 
 class XMLRepairEngine:
     # Common namespace URIs for auto-injection
-    COMMON_NAMESPACES = {
+    COMMON_NAMESPACES: ClassVar[Dict[str, str]] = {
         "soap": "http://schemas.xmlsoap.org/soap/envelope/",
         "xsi": "http://www.w3.org/2001/XMLSchema-instance",
         "xsd": "http://www.w3.org/2001/XMLSchema",
@@ -615,10 +615,7 @@ class XMLRepairEngine:
                 text_start = i
                 # Optimization: Use find instead of loop
                 next_lt = xml_string.find("<", i)
-                if next_lt == -1:
-                    i = len(xml_string)
-                else:
-                    i = next_lt
+                i = len(xml_string) if next_lt == -1 else next_lt
 
                 text_content = xml_string[text_start:i]
                 if text_content.strip():
@@ -778,7 +775,7 @@ class XMLRepairEngine:
                 match_result = self.find_best_matching_tag(closing_tag_lower, tag_stack)
 
                 if match_result:
-                    stack_index, matched_tag, distance = match_result
+                    stack_index, _matched_tag, distance = match_result
 
                     # Close the matched tag and all tags opened after it
                     # (They were left unclosed due to the mismatch)
@@ -1124,7 +1121,7 @@ class XMLRepairEngine:
         matches = re.findall(attr_pattern, attr_text)
 
         for match in matches:
-            attr_name, quote, attr_value = match
+            attr_name, _quote, attr_value = match
             attrs[attr_name] = attr_value
 
         return attrs

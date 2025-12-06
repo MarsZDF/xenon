@@ -254,25 +254,9 @@ class XMLPreprocessor:
         return tag_name.lower() in cdata_tags
 
     def needs_cdata_wrapping(self, text: str) -> bool:
-        """
-        Check if text content should be wrapped in CDATA.
-
-        For code-like content (in candidate tags), we are liberal - even
-        a single special character is worth wrapping to preserve readability.
-        """
-        if not text or text.isspace():
-            return False
-
-        # Check if already has CDATA
-        if "<![CDATA[" in text:
-            return False
-
+        """Check if text content contains characters that need CDATA wrapping."""
         special_chars = {"<", ">", "&"}
-        for char in special_chars:
-            if char in text:
-                return True
-
-        return False
+        return any(char in text for char in special_chars)
 
     def wrap_cdata(self, text: str) -> str:
         """

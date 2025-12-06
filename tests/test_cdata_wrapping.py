@@ -47,7 +47,7 @@ class TestCDATAWrapping:
 
         # Should just escape normally, no CDATA
         assert "<![CDATA[" not in result
-        assert "<code>simple text</code>" == result
+        assert result == "<code>simple text</code>"
 
     def test_cdata_does_not_wrap_when_disabled(self):
         """CDATA should not wrap when feature is disabled."""

@@ -27,7 +27,7 @@ def decode_xml(xml_bytes: bytes, encoding: Optional[str] = None) -> str:
         '<?xml version="1.0"?><root>data</root>'
     """
     if encoding is None:
-        detected_encoding, confidence = detect_encoding(xml_bytes)
+        detected_encoding, _confidence = detect_encoding(xml_bytes)
         encoding = detected_encoding
 
     try:

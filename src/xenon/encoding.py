@@ -156,10 +156,9 @@ def strip_bom(data: Union[bytes, str]) -> Union[bytes, str]:
             return data[2:]
         elif data.startswith(b"\x00\x00\xfe\xff") or data.startswith(b"\xff\xfe\x00\x00"):  # UTF-32
             return data[4:]
-    elif isinstance(data, str):
+    elif isinstance(data, str) and data.startswith("\ufeff"):
         # Remove Unicode BOM character
-        if data.startswith("\ufeff"):
-            return data[1:]
+        return data[1:]
 
     return data
 

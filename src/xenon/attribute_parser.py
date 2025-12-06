@@ -55,10 +55,7 @@ def escape_attribute_value(
         value = value.replace("\r", "&#x0D;")
     else:
         # Escape the quote character being used
-        if quote_char == '"':
-            value = value.replace('"', "&quot;")
-        else:  # single quote
-            value = value.replace("'", "&apos;")
+        value = value.replace('"', "&quot;") if quote_char == '"' else value.replace("'", "&apos;")
 
     # Restore the valid entities
     for i, entity in enumerate(entities):

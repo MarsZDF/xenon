@@ -189,7 +189,7 @@ def handle_diff(args: argparse.Namespace) -> None:
         }
         trust = trust_map[args.trust]
 
-        repaired, report = repair_xml_with_diff(xml_content, trust=trust)
+        _repaired, report = repair_xml_with_diff(xml_content, trust=trust)
 
         if not report.actions:
             print("No changes required. XML is valid and secure.", file=sys.stderr)

@@ -8,7 +8,7 @@ different types of errors that can occur during XML repair operations.
 from typing import Optional, Tuple
 
 
-class XenonException(Exception):
+class XenonException(Exception):  # noqa: N818
     """
     Base exception for all Xenon-related errors.
 
@@ -184,11 +184,11 @@ def get_line_column(text: str, position: int) -> Tuple[int, int]:
 
 
 __all__ = [
-    "XenonException",
-    "ValidationError",
     "MalformedXMLError",
     "RepairError",
     "SecurityError",
+    "ValidationError",
+    "XenonException",
     "get_context_snippet",
     "get_line_column",
 ]

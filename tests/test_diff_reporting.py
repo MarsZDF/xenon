@@ -11,7 +11,7 @@ class TestDiffReporting:
     def test_unified_diff_format(self):
         """Test unified diff output format."""
         xml = "<root><item>test"
-        result, report = repair_xml_with_report(xml, trust=TrustLevel.TRUSTED)
+        _result, report = repair_xml_with_report(xml, trust=TrustLevel.TRUSTED)
 
         diff = report.to_unified_diff()
 
@@ -25,7 +25,7 @@ class TestDiffReporting:
     def test_context_diff_format(self):
         """Test context diff output format."""
         xml = "<root><item>test"
-        result, report = repair_xml_with_report(xml, trust=TrustLevel.TRUSTED)
+        _result, report = repair_xml_with_report(xml, trust=TrustLevel.TRUSTED)
 
         diff = report.to_context_diff()
 
@@ -36,7 +36,7 @@ class TestDiffReporting:
     def test_html_diff_table_style(self):
         """Test HTML diff with table format."""
         xml = "<root><item name=unquoted>test</item></root>"
-        result, report = repair_xml_with_report(xml, trust=TrustLevel.TRUSTED)
+        _result, report = repair_xml_with_report(xml, trust=TrustLevel.TRUSTED)
 
         html = report.to_html_diff(table_style=True)
 
@@ -47,7 +47,7 @@ class TestDiffReporting:
     def test_html_diff_file_style(self):
         """Test HTML diff with file format."""
         xml = "<root><item>test"
-        result, report = repair_xml_with_report(xml, trust=TrustLevel.TRUSTED)
+        _result, report = repair_xml_with_report(xml, trust=TrustLevel.TRUSTED)
 
         html = report.to_html_diff(table_style=False)
 
@@ -58,7 +58,7 @@ class TestDiffReporting:
     def test_diff_summary_statistics(self):
         """Test diff summary statistics."""
         xml = "<root>\n<item>test\n<another>data"
-        result, report = repair_xml_with_report(xml, trust=TrustLevel.TRUSTED)
+        _result, report = repair_xml_with_report(xml, trust=TrustLevel.TRUSTED)
 
         stats = report.get_diff_summary()
 
@@ -75,7 +75,7 @@ class TestDiffReporting:
     def test_no_changes_diff(self):
         """Test diff when no changes were made."""
         xml = "<root><item>test</item></root>"
-        result, report = repair_xml_with_report(xml, trust=TrustLevel.TRUSTED)
+        _result, report = repair_xml_with_report(xml, trust=TrustLevel.TRUSTED)
 
         diff = report.to_unified_diff()
 
@@ -101,7 +101,7 @@ class TestDiffReporting:
     <item>test
     <another>data
 </root>"""
-        result, report = repair_xml_with_report(xml, trust=TrustLevel.TRUSTED)
+        _result, report = repair_xml_with_report(xml, trust=TrustLevel.TRUSTED)
 
         diff = report.to_unified_diff(context_lines=2)
 
@@ -115,7 +115,7 @@ class TestDiffReporting:
     def test_diff_with_entity_changes(self):
         """Test diff showing entity escaping changes."""
         xml = "<root>5 < 10 & 10 > 5</root>"
-        result, report = repair_xml_with_report(xml, trust=TrustLevel.TRUSTED)
+        _result, report = repair_xml_with_report(xml, trust=TrustLevel.TRUSTED)
 
         diff = report.to_unified_diff()
 

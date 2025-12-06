@@ -1,7 +1,7 @@
 """Security filtering component for Xenon XML repair engine."""
 
 import re
-from typing import Optional
+from typing import ClassVar, List, Optional
 
 from .config import SecurityFlags, XMLRepairConfig
 
@@ -14,10 +14,27 @@ class XMLSecurityFilter:
     """
 
     # Patterns for dangerous processing instructions
-    DANGEROUS_PI_PATTERNS = ["php", "asp", "jsp", "ruby", "python", "perl", "exec"]
+    DANGEROUS_PI_PATTERNS: ClassVar[List[str]] = [
+        "php",
+        "asp",
+        "jsp",
+        "ruby",
+        "python",
+        "perl",
+        "exec",
+    ]
 
     # Dangerous tags for XSS prevention
-    DANGEROUS_TAGS = ["script", "iframe", "object", "embed", "applet", "meta", "link", "style"]
+    DANGEROUS_TAGS: ClassVar[List[str]] = [
+        "script",
+        "iframe",
+        "object",
+        "embed",
+        "applet",
+        "meta",
+        "link",
+        "style",
+    ]
 
     def __init__(self, config: XMLRepairConfig):
         """

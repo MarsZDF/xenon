@@ -215,7 +215,7 @@ class TestRepairXMLWithReport:
     def test_report_is_truthy_when_repairs_made(self):
         """Test that report evaluates to True when repairs were made."""
         xml = "<root><item>Hello"
-        result, report = repair_xml_with_report(xml, trust=TrustLevel.TRUSTED)
+        _result, report = repair_xml_with_report(xml, trust=TrustLevel.TRUSTED)
 
         # Report should be truthy if repairs were made
         if len(report) > 0:
@@ -242,7 +242,7 @@ class TestRepairXMLWithReport:
         # 3. An unquoted attribute.
         # 4. Truncation (missing closing tags for item and root).
 
-        result, report = repair_xml_with_report(xml, trust=TrustLevel.UNTRUSTED)
+        _result, report = repair_xml_with_report(xml, trust=TrustLevel.UNTRUSTED)
 
         assert len(report.actions) == 4
 

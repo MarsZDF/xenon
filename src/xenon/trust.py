@@ -237,4 +237,4 @@ def get_security_config(
     return defaults
 
 
-__all__ = ["TrustLevel", "SecurityConfig", "get_security_config"]
+__all__ = ["SecurityConfig", "TrustLevel", "get_security_config"]

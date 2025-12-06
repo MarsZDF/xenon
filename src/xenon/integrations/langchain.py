@@ -19,7 +19,7 @@ except ImportError:
             for key, value in kwargs.items():
                 setattr(self, key, value)
 
-    class OutputParserException(Exception):  # type: ignore
+    class OutputParserException(Exception):  # type: ignore  # noqa: N818
         """Dummy OutputParserException."""
 
         pass

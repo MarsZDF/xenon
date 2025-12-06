@@ -47,12 +47,11 @@ def validate_xml_input(
             )
 
     # Empty/whitespace validation
-    if not xml_input.strip():
-        if not allow_empty:
-            raise ValidationError(
-                "Input is empty or contains only whitespace. "
-                "Provide valid XML content to repair, or use allow_empty=True."
-            )
+    if not xml_input.strip() and not allow_empty:
+        raise ValidationError(
+            "Input is empty or contains only whitespace. "
+            "Provide valid XML content to repair, or use allow_empty=True."
+        )
 
     # Size validation (if enabled)
     if max_size is not None and len(xml_input) > max_size:
@@ -104,7 +103,7 @@ def validate_repaired_output(repaired: str, original: str) -> None:
     if "<" not in repaired or ">" not in repaired:
         preview = repaired[:100] if len(repaired) > 100 else repaired
         raise ValidationError(
-            f"Repair produced invalid output without XML tags: {repr(preview)}... "
+            f"Repair produced invalid output without XML tags: {preview!r}... "
             f"Original input may not be XML."
         )
 

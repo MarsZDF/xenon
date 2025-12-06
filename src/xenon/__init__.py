@@ -268,10 +268,7 @@ def repair_xml_safe(
         >>> repair_xml_safe(TEST_XML, trust=TrustLevel.TRUSTED)
     """
     # Step 0: v0.6.0 - Handle bytes input by decoding
-    if isinstance(xml_input, bytes):
-        xml_string = decode_xml(xml_input)
-    else:
-        xml_string = xml_input
+    xml_string = decode_xml(xml_input) if isinstance(xml_input, bytes) else xml_input
 
     # Step 1: Validate input
     try:
@@ -546,7 +543,7 @@ repair_xml_with_diff = repair_xml_with_report
 
 
 # Public interface
-__all__ = [
+__all__ = [  # noqa: RUF022
     # Core functions
     "repair_xml",
     "parse_xml",

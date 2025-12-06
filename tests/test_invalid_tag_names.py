@@ -12,13 +12,13 @@ class TestInvalidTagNames:
         """Test sanitizing tag that starts with a number."""
         xml = "<123illegal>data</123illegal>"
         result = repair_xml_safe(xml, trust=TrustLevel.TRUSTED, sanitize_invalid_tags=True)
-        assert "<tag_123illegal>data</tag_123illegal>" == result
+        assert result == "<tag_123illegal>data</tag_123illegal>"
 
     def test_tag_with_spaces(self):
         """Test sanitizing tag with spaces in name."""
         xml = "<tag with spaces>data</tag with spaces>"
         result = repair_xml_safe(xml, trust=TrustLevel.TRUSTED, sanitize_invalid_tags=True)
-        assert "<tag_with_spaces>data</tag_with_spaces>" == result
+        assert result == "<tag_with_spaces>data</tag_with_spaces>"
 
     def test_tag_with_special_chars(self):
         """Test sanitizing tag with special characters."""
@@ -32,8 +32,8 @@ class TestInvalidTagNames:
         xml = "<-invalid>data</-invalid>"
         result = repair_xml_safe(xml, trust=TrustLevel.TRUSTED, sanitize_invalid_tags=True)
         assert (
-            "<tag_-invalid>data</tag_-invalid>" == result
-            or "<tag_invalid>data</tag_invalid>" == result
+            result == "<tag_-invalid>data</tag_-invalid>"
+            or result == "<tag_invalid>data</tag_invalid>"
         )
 
     def test_empty_tag_name(self):
@@ -64,7 +64,7 @@ class TestInvalidTagNames:
         """Test that valid tag names are not modified."""
         xml = "<validTag>data</validTag>"
         result = repair_xml_safe(xml, trust=TrustLevel.TRUSTED, sanitize_invalid_tags=True)
-        assert "<validTag>data</validTag>" == result
+        assert result == "<validTag>data</validTag>"
 
     def test_sanitization_disabled_by_default(self):
         """Test that sanitization is OFF by default."""
@@ -92,20 +92,20 @@ class TestInvalidTagNames:
         """Test that tags with colons (namespaces) are valid."""
         xml = "<ns:tag>data</ns:tag>"
         result = repair_xml_safe(xml, trust=TrustLevel.TRUSTED, sanitize_invalid_tags=True)
-        assert "<ns:tag>data</ns:tag>" == result
+        assert result == "<ns:tag>data</ns:tag>"
 
     def test_tag_with_underscore_valid(self):
         """Test that tags starting with underscore are valid."""
         xml = "<_tag>data</_tag>"
         result = repair_xml_safe(xml, trust=TrustLevel.TRUSTED, sanitize_invalid_tags=True)
-        assert "<_tag>data</_tag>" == result
+        assert result == "<_tag>data</_tag>"
 
     def test_engine_direct_usage(self):
         """Test using XMLRepairEngine directly with sanitize_invalid_tags."""
         engine = XMLRepairEngine(sanitize_invalid_tags=True)
         xml = "<123illegal>data</123illegal>"
         repaired_xml, _ = engine.repair_xml(xml)
-        assert "<tag_123illegal>data</tag_123illegal>" == repaired_xml
+        assert repaired_xml == "<tag_123illegal>data</tag_123illegal>"
 
     def test_combined_with_other_features(self):
         """Test sanitize_invalid_tags with other repair features."""

@@ -16,16 +16,16 @@ HTML_ENTITIES = {
     "yen": "\u00a5",  # ¥
     "cent": "\u00a2",  # ¢
     # Dashes and quotes
-    "ndash": "\u2013",  # –
+    "ndash": "\u2013",  # –  # noqa: RUF003
     "mdash": "\u2014",  # —
     "lsquo": "\u2018",  # '
     "rsquo": "\u2019",  # '
+    "sbquo": "\u201a",  # ‚  # noqa: RUF003
     "ldquo": "\u201c",  # "
     "rdquo": "\u201d",  # "
-    "sbquo": "\u201a",  # ‚
     "bdquo": "\u201e",  # „
     # Math and symbols
-    "times": "\u00d7",  # ×
+    "times": "\u00d7",  # ×  # noqa: RUF003
     "divide": "\u00f7",  # ÷
     "plusmn": "\u00b1",  # ±
     "deg": "\u00b0",  # °

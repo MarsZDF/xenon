@@ -96,7 +96,7 @@ class TestHTMLEntities:
         text = "5 &times; 3 = 15, 10 &divide; 2 = 5, &plusmn;1"
         result = convert_html_entities_to_numeric(text)
 
-        assert "&#215;" in result  # ×
+        assert "&#215;" in result  # ×  # noqa: RUF003
         assert "&#247;" in result  # ÷
         assert "&#177;" in result  # ±
 
@@ -125,9 +125,9 @@ class TestHTMLEntities:
         text = "&alpha;, &beta;, &gamma;, &pi;"
         result = convert_html_entities_to_numeric(text)
 
-        assert "&#945;" in result  # α
+        assert "&#945;" in result  # α  # noqa: RUF003
         assert "&#946;" in result  # β
-        assert "&#947;" in result  # γ
+        assert "&#947;" in result  # γ  # noqa: RUF003
         assert "&#960;" in result  # π
 
     def test_mixed_entities_in_xml(self):

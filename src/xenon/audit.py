@@ -349,11 +349,11 @@ class SecurityMetrics:
 
 
 __all__ = [
-    "ThreatType",
-    "ThreatSeverity",
-    "Threat",
-    "ThreatDetector",
     "AuditEntry",
     "AuditLogger",
     "SecurityMetrics",
+    "Threat",
+    "ThreatDetector",
+    "ThreatSeverity",
+    "ThreatType",
 ]
