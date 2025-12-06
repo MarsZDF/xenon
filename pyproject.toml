@@ -124,7 +124,7 @@ ignore = [
 "tests/*" = ["B", "F401", "F841"]
 
 [tool.mypy]
-python_version = "3.10"
+python_version = "3.8"
 warn_return_any = false
 warn_unused_configs = true
 warn_redundant_casts = false

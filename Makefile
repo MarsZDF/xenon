@@ -27,7 +27,7 @@ install:
 	@echo "✅ Installation complete."
 
 # Run all checks (what CI runs)
-check: lint format typecheck security test
+check: lint format typecheck security dist-check test
 	@echo ""
 	@echo "✅ All checks passed! Safe to push."
 
@@ -62,6 +62,13 @@ typecheck:
 security:
 	@echo "🔒 Security check..."
 	python -m bandit -r src/ -c pyproject.toml
+
+# Build distribution and check metadata (twine)
+dist-check:
+	@echo "📦 Verifying package build..."
+	rm -rf dist/
+	python -m build
+	twine check dist/*
 
 # Clean cache files
 clean:
