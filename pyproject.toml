@@ -10,6 +10,7 @@ readme = "README.md"
 requires-python = ">=3.8"
 license = "MIT"
 authors = [
+    { name = "Marco Zaccaria Di Fraia" },
     { name = "Xenon Contributors" },
 ]
 keywords = [
