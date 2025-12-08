@@ -18,17 +18,18 @@ keywords = [
     "parser",
     "repair",
     "llm",
-    "language-model",
     "malformed",
-    "fix",
     "security",
     "trust-levels",
     "audit",
     "rag",
-    "langchain",
-    "openai",
-    "hallucination-repair",
     "generative-ai",
+    "hallucination-repair",
+    "ai",
+    "streaming",
+    "async",
+    "nlp",
+    "ai-agents",
 ]
 classifiers = [
     "Development Status :: 5 - Production/Stable",
@@ -43,9 +44,12 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
     "Topic :: Security",
     "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Text Processing",
     "Topic :: Text Processing :: Markup :: XML",
+    "Typing :: Typed",
 ]
 
 # Zero runtime dependencies - uses only Python Standard Library
