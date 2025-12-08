@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "elemental-xenon"
-version = "1.1.0a1"
+version = "1.1.0"
 description = "Secure-by-default XML repair library for LLM-generated XML with trust levels"
 readme = "README.md"
 requires-python = ">=3.8"
@@ -190,15 +190,16 @@ skips = ["B101"]  # Skip assert_used in tests
 
 
 [tool.semantic_release]
-
-branch = "main"
-
-upload_to_pypi = false
-
-upload_to_release = true
-
+version_toml = ["pyproject.toml:project.version"]
+version_variables = ["src/xenon/__init__.py:__version__"]
 build_command = "pip install build && python -m build"
+commit_message = "ci(release): bump version to {version}"
+tag_format = "v{version}"
 
-version_variable = "src/xenon/__init__.py:__version__"
+[tool.semantic_release.branches.main]
+match = "main"
+prerelease = false
 
-commit_subject = "ci(release): new version {version}"
+[tool.semantic_release.publish]
+upload_to_vcs_release = true
+dist_glob_patterns = ["dist/*"]

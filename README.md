@@ -28,13 +28,14 @@ Think of Xenon as the **pre-processor** that ensures your data pipeline remains 
 ## Installation
 
 ```bash
-# Install directly from GitHub
-pip install git+https://github.com/MarsZDF/xenon.git
+pip install elemental-xenon
+```
 
-# Or clone and install locally
+For development:
+```bash
 git clone https://github.com/MarsZDF/xenon.git
 cd xenon
-pip install -e .
+pip install -e ".[dev]"
 ```
 
 ## ⚡ Quick Start
